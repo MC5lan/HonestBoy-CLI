@@ -40,7 +40,8 @@ func TestExitCodesDocumented(t *testing.T) {
 	}
 }
 
-// TC07：hb --help 的命令集合与 docs/commands.md / README.md 一致（双向）。
+// TC07：hb --help 的命令集合与 docs/commands.md 一致（双向）；
+// README 是精简入口，只要求出现的命令都真实存在。
 func TestCommandTableMatchesHelp(t *testing.T) {
 	var buf bytes.Buffer
 	cli.PrintHelp(&buf)
@@ -49,21 +50,29 @@ func TestCommandTableMatchesHelp(t *testing.T) {
 		t.Fatalf("parsed too few commands from help: %v", helpSet)
 	}
 
-	for _, file := range []string{"commands.md", "../README.md"} {
-		raw, err := os.ReadFile(file)
-		if err != nil {
-			t.Fatal(err)
+	raw, err := os.ReadFile("commands.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	docSet := commandSetFromMarkdown(string(raw))
+	for cmd := range helpSet {
+		if !docSet[cmd] {
+			t.Fatalf("command %q in --help but missing from docs/commands.md", cmd)
 		}
-		docSet := commandSetFromMarkdown(string(raw))
-		for cmd := range helpSet {
-			if !docSet[cmd] {
-				t.Fatalf("command %q in --help but missing from %s", cmd, file)
-			}
+	}
+	for cmd := range docSet {
+		if !helpSet[cmd] {
+			t.Fatalf("command %q documented but missing from --help", cmd)
 		}
-		for cmd := range docSet {
-			if !helpSet[cmd] {
-				t.Fatalf("command %q documented in %s but missing from --help", cmd, file)
-			}
+	}
+
+	readmeRaw, err := os.ReadFile("../README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for cmd := range commandSetFromMarkdown(string(readmeRaw)) {
+		if !helpSet[cmd] {
+			t.Fatalf("README mentions command %q which is missing from --help", cmd)
 		}
 	}
 }
@@ -105,18 +114,16 @@ func commandSetFromMarkdown(doc string) map[string]bool {
 	return set
 }
 
-// TC07：TUI 快捷键表与 docs/commands.md / README.md 一致。
+// TC07：TUI 快捷键表与 docs/commands.md 一致。
 func TestKeyMapDocumented(t *testing.T) {
-	for _, file := range []string{"commands.md", "../README.md"} {
-		raw, err := os.ReadFile(file)
-		if err != nil {
-			t.Fatal(err)
-		}
-		doc := string(raw)
-		for _, key := range tui.KeyBindings() {
-			if !strings.Contains(doc, "`"+key+"`") {
-				t.Fatalf("key %q missing from %s", key, file)
-			}
+	raw, err := os.ReadFile("commands.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := string(raw)
+	for _, key := range tui.KeyBindings() {
+		if !strings.Contains(doc, "`"+key+"`") {
+			t.Fatalf("key %q missing from docs/commands.md", key)
 		}
 	}
 }

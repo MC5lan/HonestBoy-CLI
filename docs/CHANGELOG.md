@@ -23,10 +23,12 @@
 - 性能基线填入本机实测值。
 
 ### 文档
-- README 全面重写：30 秒理解、机制图、安装/快速开始、TUI、命令分组、协议、配置、
-  终态退出码、安全边界、FAQ、开发与文档索引。
+- README 精简为入口页：保留价值主张、快速开始、特性、机制、命令、安装与论文链接，
+  详细内容移入 `docs/`。
+- 新增指导论文 [`docs/paper/constructive-closure.pdf`](paper/constructive-closure.pdf) 及说明。
+- 吉祥物改为去黑边的透明背景 `assets/mascot.png`。
 - 补齐 `docs/troubleshooting.md` 与 `docs/frozen-scope.md`，不再是指向空文档的链接。
-- 文档一致性测试扩展到 README 的命令表与快捷键表。
+- 文档一致性测试覆盖 `docs/commands.md` 的命令表与快捷键表，并校验 README 中的命令真实存在。
 
 ## v0.1.0（规划中）
 - 阶段 1–13 实现：core 状态机与 Gate、三套模型协议（Chat Completions / Anthropic Messages / Responses）、
