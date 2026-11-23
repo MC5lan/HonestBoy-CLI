@@ -3,11 +3,13 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/MC5lan/HonestBoy-CLI/internal/core"
 	"github.com/MC5lan/HonestBoy-CLI/internal/logging"
 	"github.com/MC5lan/HonestBoy-CLI/internal/store"
 )
@@ -104,8 +106,21 @@ func RunExport(opts GlobalOptions, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrEnvironment, err)
 	}
+	return writeExport(os.Stdout, sess, redact)
+}
+
+// writeExport 把会话写成每行一个 JSON 对象，便于流式脱敏与管道消费。
+func writeExport(w io.Writer, sess *core.Session, redact bool) error {
 	var b strings.Builder
-	b.WriteString(`{"kind":"meta","id":"` + sess.ID + `","cwd":"` + sess.Cwd + `"}` + "\n")
+	meta, err := json.Marshal(map[string]string{"kind": "meta", "id": sess.ID, "cwd": sess.Cwd})
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrEnvironment, err)
+	}
+	metaLine := string(meta)
+	if redact {
+		metaLine = redactLine(metaLine)
+	}
+	b.WriteString(metaLine + "\n")
 	for _, ev := range sess.Events {
 		raw, err := jsonMarshal(ev)
 		if err != nil {
@@ -117,7 +132,7 @@ func RunExport(opts GlobalOptions, args []string) error {
 		}
 		b.WriteString(line + "\n")
 	}
-	fmt.Fprint(os.Stdout, b.String())
+	fmt.Fprint(w, b.String())
 	return nil
 }
 

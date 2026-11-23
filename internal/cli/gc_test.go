@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -62,5 +65,56 @@ func TestGCNothingToClean(t *testing.T) {
 	t.Setenv("LOCALAPPDATA", root)
 	if err := RunGC(GlobalOptions{}, []string{"--dry-run"}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// 导出必须是合法 jsonl：Windows 路径的反斜杠要正确转义。
+func TestExportValidJSONL(t *testing.T) {
+	sess := &core.Session{
+		ID:  "s1",
+		Cwd: `C:\Users\张三\code`,
+		Events: []core.Event{{
+			Seq: 1, SessionID: "s1", Type: core.EvtTurnStart, Time: time.Now().UTC(),
+			Data: core.TurnStartData{Input: "hi"},
+		}},
+	}
+	var buf bytes.Buffer
+	if err := writeExport(&buf, sess, false); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("lines = %d", len(lines))
+	}
+	for _, line := range lines {
+		if !json.Valid([]byte(line)) {
+			t.Fatalf("invalid json line: %s", line)
+		}
+	}
+	if !strings.Contains(lines[0], "C:\\\\Users") {
+		t.Fatalf("windows path not escaped: %s", lines[0])
+	}
+}
+
+// --redact 必须遮蔽密钥样式的内容，且仍是合法 JSON。
+func TestExportRedacts(t *testing.T) {
+	sess := &core.Session{
+		ID: "s2", Cwd: "/tmp/x",
+		Events: []core.Event{{
+			Seq: 1, SessionID: "s2", Type: core.EvtNotice, Time: time.Now().UTC(),
+			Data: core.NoticeData{Level: "info", Text: "key sk-abcdefghijklmnopqrstuvwxyz012345"},
+		}},
+	}
+	var buf bytes.Buffer
+	if err := writeExport(&buf, sess, true); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "sk-abcdefghijklmnopqrstuvwxyz012345") {
+		t.Fatal("secret leaked in redacted export")
+	}
+	for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
+		if !json.Valid([]byte(line)) {
+			t.Fatalf("invalid json after redaction: %s", line)
+		}
 	}
 }

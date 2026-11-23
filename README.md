@@ -34,7 +34,7 @@ Honest Boy 的全部工程，就是为了让“没验证就说完成”这件事
 3. 安装：阶段 11（TB01）提供三平台单文件分发。
 4. 30 秒上手：`hb --version`、`hb run "..."`、`hb verify`。
 5. 它不会做什么：不做遥测、云同步、绝对防作弊，详见 `docs/frozen-scope.md`。
-6. 文档索引：见 `docs/` 目录。
+6. 文档索引：见 `docs/` 目录；发布步骤见 `docs/release-checklist.md`。
 
 ## 构建
 
