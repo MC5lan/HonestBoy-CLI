@@ -40,31 +40,53 @@ func TestExitCodesDocumented(t *testing.T) {
 	}
 }
 
-// TC07：hb --help 的命令集合与 docs/commands.md 一致（双向）。
+// TC07：hb --help 的命令集合与 docs/commands.md / README.md 一致（双向）。
 func TestCommandTableMatchesHelp(t *testing.T) {
 	var buf bytes.Buffer
 	cli.PrintHelp(&buf)
-	helpSet := map[string]bool{}
-	for _, line := range strings.Split(buf.String(), "\n") {
+	helpSet := commandSetFromHelp(buf.String())
+	if len(helpSet) < 10 {
+		t.Fatalf("parsed too few commands from help: %v", helpSet)
+	}
+
+	for _, file := range []string{"commands.md", "../README.md"} {
+		raw, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		docSet := commandSetFromMarkdown(string(raw))
+		for cmd := range helpSet {
+			if !docSet[cmd] {
+				t.Fatalf("command %q in --help but missing from %s", cmd, file)
+			}
+		}
+		for cmd := range docSet {
+			if !helpSet[cmd] {
+				t.Fatalf("command %q documented in %s but missing from --help", cmd, file)
+			}
+		}
+	}
+}
+
+func commandSetFromHelp(help string) map[string]bool {
+	set := map[string]bool{}
+	for _, line := range strings.Split(help, "\n") {
 		line = strings.TrimSpace(line)
 		if !strings.HasPrefix(line, "hb ") {
 			continue
 		}
 		fields := strings.Fields(line)
 		if len(fields) >= 2 && !strings.HasPrefix(fields[1], "-") && !strings.HasPrefix(fields[1], "[") {
-			helpSet[fields[1]] = true
+			set[fields[1]] = true
 		}
 	}
-	if len(helpSet) < 10 {
-		t.Fatalf("parsed too few commands from help: %v", helpSet)
-	}
+	return set
+}
 
-	raw, err := os.ReadFile("commands.md")
-	if err != nil {
-		t.Fatal(err)
-	}
-	docSet := map[string]bool{}
-	for _, line := range strings.Split(string(raw), "\n") {
+// commandSetFromMarkdown 解析表格首列里 `hb ...` 的命令名。
+func commandSetFromMarkdown(doc string) map[string]bool {
+	set := map[string]bool{}
+	for _, line := range strings.Split(doc, "\n") {
 		line = strings.TrimSpace(line)
 		if !strings.HasPrefix(line, "| `hb") {
 			continue
@@ -77,32 +99,24 @@ func TestCommandTableMatchesHelp(t *testing.T) {
 		cmdText := line[start+1 : start+1+end]
 		fields := strings.Fields(cmdText)
 		if len(fields) >= 2 {
-			docSet[fields[1]] = true
+			set[fields[1]] = true
 		}
 	}
-
-	for cmd := range helpSet {
-		if !docSet[cmd] {
-			t.Fatalf("command %q in --help but missing from docs/commands.md", cmd)
-		}
-	}
-	for cmd := range docSet {
-		if !helpSet[cmd] {
-			t.Fatalf("command %q documented but missing from --help", cmd)
-		}
-	}
+	return set
 }
 
-// TC07：TUI 快捷键表与 docs/commands.md 一致。
+// TC07：TUI 快捷键表与 docs/commands.md / README.md 一致。
 func TestKeyMapDocumented(t *testing.T) {
-	raw, err := os.ReadFile("commands.md")
-	if err != nil {
-		t.Fatal(err)
-	}
-	doc := string(raw)
-	for _, key := range tui.KeyBindings() {
-		if !strings.Contains(doc, "`"+key+"`") {
-			t.Fatalf("key %q missing from docs/commands.md", key)
+	for _, file := range []string{"commands.md", "../README.md"} {
+		raw, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		doc := string(raw)
+		for _, key := range tui.KeyBindings() {
+			if !strings.Contains(doc, "`"+key+"`") {
+				t.Fatalf("key %q missing from %s", key, file)
+			}
 		}
 	}
 }

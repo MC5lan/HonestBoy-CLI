@@ -2,9 +2,9 @@
 
 已由 `docs/consistency_test.go` 机器化执行：
 
-1. `hb --help` 命令集合 == `docs/commands.md`（双向，改一边另一边红）
+1. `hb --help` 命令集合 == `docs/commands.md` == `README.md`（双向，改一边另一边红）
 2. 退出码表 == `internal/cli/exit.go`
-3. TUI 快捷键表 == `internal/tui/help.go` 的 `KeyBindings()`
+3. TUI 快捷键表 == `internal/tui/help.go` 的 `KeyBindings()`，且出现在 `docs/commands.md` 与 `README.md`
 4. 错误码表 == `internal/errs`
 
 运行：`go test ./docs -v`
