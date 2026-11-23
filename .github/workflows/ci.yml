@@ -11,3 +11,25 @@ jobs:
       - run: go vet ./...
       - run: go test ./... -race -count=1
       - run: bash scripts/checkdeps.sh
+
+  e2e-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.27' }
+      - run: go build ./...
+      - name: binary e2e (real process + HTTP model stub)
+        run: go test ./e2e -v -count=1
+        env:
+          HB_E2E: '1'
+      - name: dependency direction
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/checkdeps.ps1
+
+  govuln:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.27' }
+      - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
