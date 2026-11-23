@@ -1,0 +1,21 @@
+run:
+  timeout: 5m
+linters:
+  enable:
+    - gofmt
+    - govet
+    - errcheck
+    - staticcheck
+    - ineffassign
+    - unused
+    - gocyclo
+    - gocognit
+    - misspell
+    - bodyclose
+    - errorlint
+    - noctx
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+issues:
+  exclude-use-default: false

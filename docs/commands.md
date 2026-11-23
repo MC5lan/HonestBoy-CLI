@@ -1,0 +1,51 @@
+# 命令参考
+
+| 命令 | 说明 | TTY 依赖 |
+|---|---|---|
+| `hb` | 无参数打印帮助（有 TTY 时启动 TUI） | 条件 |
+| `hb run <prompt>` | 单次执行 | 否 |
+| `hb chat` | 显式交互（Bubble Tea TUI） | 是 |
+| `hb`（无参数） | 有 TTY 时启动 TUI，无 TTY 打印帮助 | 条件 |
+| `hb sessions` | 列出/查看/删除会话 | 否 |
+| `hb resume <id>` | 恢复会话（TUI 回放历史并可继续） | 是 |
+| `hb verify` | 校验证据链 | 否 |
+| `hb stats` | 统计 | 否 |
+| `hb probe` | 三态探针 | 否 |
+| `hb config` | 配置查看/设置 | 否 |
+| `hb doctor` | 环境自检 | 否 |
+| `hb explain <code>` | 查询错误码 | 否 |
+| `hb undo` | 撤销最近一次自动提交（保留文件改动） | 否 |
+| `hb diff` | 查看当前工作区 diff | 否 |
+| `hb rewind list` | 列出检查点（默认最近会话） | 否 |
+| `hb rewind restore <id>` | 恢复代码到检查点（对话历史保留） | 否 |
+
+全局 flag：`--model` `--protocol` `--base-url` `--cwd` `--json` `--quiet`
+`--yes` `--plan` `--auto-commit` `--timeout` `--max-turns` `--no-color` `--debug` `--version` `--help`
+
+`--auto-commit`（Aider 风格）：回合开始前把用户已有脏改动单独提交；回合结束后若有写操作则自动提交，
+并产出 `diff_review` 事件（提交号/文件列表/统计）供 TUI 与日志审阅。用 `hb undo` 撤销、`hb diff` 查看。
+
+`--plan` 进入计划模式：只暴露只读工具，模型输出执行计划后回合以 `halt` 暂停并把计划写入 Receipt；
+用 `hb approve <session-id>` 批准并按计划执行。
+
+## 模型协议
+
+| 协议 | `--protocol` 值 | 端点格式 | 说明 |
+|---|---|---|---|
+| OpenAI Chat Completions | `openai-chat`（默认） | `{base_url}/chat/completions` | 生态最成熟 |
+| Anthropic Messages | `anthropic` | `{base_url}/v1/messages` | 2026 年事实第二标准，Claude Code 生态推动；DeepSeek/MiniMax/xAI/Ollama 亦兼容 |
+| OpenAI Responses | `responses` | `{base_url}/responses`（base_url 含 `/v1`） | 语义化 SSE 事件；部分新模型 Responses-only；显式设 `store:false`，会话只存本地 |
+
+自动推断规则：URL 含 `anthropic` 或 `/v1/messages` → Anthropic；URL 以 `/responses` 结尾 → Responses；
+其余 → Chat Completions。若 base_url 只含 `/v1`（最常见），Responses 需显式传 `--protocol responses`。
+密钥只从环境变量读（默认 `HB_API_KEY`），配置里只存环境变量名。
+
+## 上下文与撤销
+
+- 每轮自动装配：系统提示 → `HB.md`/`AGENTS.md` → 环境（OS/cwd/日期 + `git status --short` 与 `git diff --stat`）→ 任务。
+- 上下文预算为窗口的 70%；超出时旧对话丢弃、旧工具输出截到 200 字符，并发 `notice{info}` 报告裁剪条数；
+  最近 2 轮与 system 永远保留。
+- 每轮开始写文件快照检查点（跳过 `.git`/构建产物与 >2MB 文件）；`hb rewind restore` 可把代码恢复到快照，
+  对话历史不受影响（对标 Claude Code `/rewind` 与 Aider `/undo`）。
+- 编辑工具有 `edit_file`（精确替换）与 `apply_patch`（`*** Begin Patch` 格式，支持新增/删除/更新文件）。
+  两者的锚点不唯一都报错，不做模糊匹配。

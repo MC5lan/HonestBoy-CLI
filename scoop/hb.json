@@ -1,0 +1,30 @@
+{
+  "version": "0.1.0",
+  "homepage": "https://github.com/MC5lan/HonestBoy-CLI",
+  "description": "Local AI coding agent CLI with a completion gate grounded in verifier evidence",
+  "license": "Apache-2.0",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/MC5lan/HonestBoy-CLI/releases/download/v0.1.0/hb_0.1.0_windows_amd64.zip",
+      "hash": "REPLACE_WITH_RELEASE_SHA256"
+    },
+    "arm64": {
+      "url": "https://github.com/MC5lan/HonestBoy-CLI/releases/download/v0.1.0/hb_0.1.0_windows_arm64.zip",
+      "hash": "REPLACE_WITH_RELEASE_SHA256"
+    }
+  },
+  "bin": "hb.exe",
+  "checkver": {
+    "github": "https://github.com/MC5lan/HonestBoy-CLI"
+  },
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/MC5lan/HonestBoy-CLI/releases/download/v$version/hb_$version_windows_amd64.zip"
+      },
+      "arm64": {
+        "url": "https://github.com/MC5lan/HonestBoy-CLI/releases/download/v$version/hb_$version_windows_arm64.zip"
+      }
+    }
+  }
+}

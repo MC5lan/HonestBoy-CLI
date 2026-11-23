@@ -1,0 +1,4 @@
+# <type>(<scope>): <subject>
+#
+# type: feat|fix|refactor|test|docs|chore|perf|build
+# 示例: feat(core): 实现 Gate 判定顺序
