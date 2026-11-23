@@ -55,12 +55,21 @@ func (e *Engine) runTurn(ctx context.Context, input string) (core.Terminal, erro
 		return core.TermHalt, nil
 	}
 
-	if cp, cerr := CreateCheckpoint(e.cfg.Workdir, filepath.Join(e.store.Paths.Sessions, s.ID), turn.ID, input); cerr == nil {
-		e.emit(core.EvtNotice, core.NoticeData{Level: "info", Text: "检查点已创建 " + cp.ID})
+	if isHomeDir(e.cfg.Workdir) {
+		e.emit(core.EvtNotice, core.NoticeData{Level: "warn", Text: "当前是用户主目录，已跳过检查点；建议在具体项目目录运行 hb"})
+	} else if cp, cerr := CreateCheckpoint(e.cfg.Workdir, filepath.Join(e.store.Paths.Sessions, s.ID), turn.ID, input); cerr == nil {
+		if cp.Truncated {
+			e.emit(core.EvtNotice, core.NoticeData{
+				Level: "warn",
+				Text:  fmt.Sprintf("检查点已截断（达到 %d 文件或 %dMB 上限）；建议在更小的项目目录运行 hb", maxCheckpointFiles, maxCheckpointBytes/(1<<20)),
+			})
+		} else {
+			e.emit(core.EvtNotice, core.NoticeData{Level: "info", Text: "检查点已创建 " + cp.ID})
+		}
 	}
 
 	repoMap := ""
-	if e.cfg.RepoMapTokens >= 0 {
+	if e.cfg.RepoMapTokens >= 0 && !isHomeDir(e.cfg.Workdir) {
 		repoMap = RepoMapContext(e.cfg.Workdir, e.cfg.RepoMapTokens)
 	}
 	sys := AssembleContext(systemPrompt,
@@ -265,7 +274,7 @@ steps:
 		stop := false
 		for _, call := range calls {
 			toolCalls++
-			if halt, reason := e.guard.Check(e.ledger, toolCalls); halt {
+			if halt, reason := e.guard.Check(e.ledger, toolCalls, turn.ID); halt {
 				e.emit(core.EvtNotice, core.NoticeData{Level: "error", Text: reason})
 				e.writeReceipt(core.TermHalt, reason)
 				_ = turn.Transition(core.StClosed)

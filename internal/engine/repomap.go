@@ -44,11 +44,15 @@ var (
 	rustStruct = regexp.MustCompile(`^\s*(?:pub\s+)?struct\s+([A-Za-z_]\w*)`)
 )
 
-var mapIgnoredDirs = map[string]bool{
-	".git": true, "node_modules": true, "vendor": true, "bin": true,
-	"dist": true, ".idea": true, "__pycache__": true, ".hb-crash": true,
-	"testdata": true, "assets": true,
-}
+var mapIgnoredDirs = func() map[string]bool {
+	m := make(map[string]bool, len(scanIgnoredDirs)+2)
+	for k, v := range scanIgnoredDirs {
+		m[k] = v
+	}
+	m["testdata"] = true
+	m["assets"] = true
+	return m
+}()
 
 // BuildRepoMap 扫描工作区，最多使用 maxTokens 的预算。
 func BuildRepoMap(workdir string, maxTokens int) *RepoMap {
@@ -71,11 +75,18 @@ func BuildRepoMap(workdir string, maxTokens int) *RepoMap {
 			}
 			return nil
 		}
+		info, _ := d.Info()
+		if info != nil && info.Size() > 2<<20 {
+			return nil
+		}
 		ext := strings.ToLower(filepath.Ext(rel))
 		if ext != ".go" && ext != ".py" && ext != ".js" && ext != ".ts" && ext != ".tsx" && ext != ".rs" && ext != ".java" {
 			return nil
 		}
 		if ext == ".go" {
+			if len(goFiles) >= 5000 {
+				return filepath.SkipAll
+			}
 			goFiles = append(goFiles, path)
 		}
 		parseGenericFile(m, workdir, path, rel, ext)
@@ -203,22 +214,40 @@ func countRefs(m *RepoMap, workdir string) {
 	names := make(map[string]int)
 	for _, s := range m.Symbols {
 		names[s.Name]++
+		if len(names) >= 500 {
+			break // 只统计前 500 个符号，避免大仓库 O(files×names×symbols)
+		}
 	}
 	if len(names) == 0 {
 		return
 	}
+	files := 0
 	_ = filepath.WalkDir(workdir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+		if err != nil {
 			return nil
+		}
+		if d.IsDir() {
+			if scanIgnoredDirs[d.Name()] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if files >= 2000 {
+			return filepath.SkipAll
 		}
 		ext := strings.ToLower(filepath.Ext(path))
 		if ext != ".go" && ext != ".py" && ext != ".js" && ext != ".ts" && ext != ".tsx" && ext != ".rs" && ext != ".java" {
 			return nil
 		}
-		data, err := os.ReadFile(path)
-		if err != nil || len(data) > 2<<20 {
+		info, _ := d.Info()
+		if info != nil && info.Size() > 2<<20 {
 			return nil
 		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		files++
 		text := string(data)
 		for name := range names {
 			m.Symbols = countOne(m.Symbols, name, strings.Count(text, name))

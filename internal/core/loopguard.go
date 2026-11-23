@@ -13,7 +13,8 @@ const (
 // Check 检查失败重复与工具调用次数：
 // 同错 2 次返回警告（halt=false），3 次强制 halt；
 // 单回合工具调用超过 100 次强制 halt。
-func (g *LoopGuard) Check(led *Ledger, toolCalls int) (halt bool, reason string) {
+// turnID 非空时只统计当前回合的失败，历史账本不阻断新回合。
+func (g *LoopGuard) Check(led *Ledger, toolCalls int, turnID string) (halt bool, reason string) {
 	if toolCalls > maxToolCalls {
 		return true, haltTooManyCalls
 	}
@@ -22,7 +23,7 @@ func (g *LoopGuard) Check(led *Ledger, toolCalls int) (halt bool, reason string)
 	}
 	for i := len(led.entries) - 1; i >= 0; i-- {
 		e := led.entries[i]
-		n := led.SameFailureRepeated(e.What, e.Why)
+		n := led.FailureRepeatedInTurn(e.What, e.Why, turnID)
 		switch {
 		case n >= 3:
 			return true, haltRepeated3x

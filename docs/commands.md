@@ -83,5 +83,6 @@ DeepSeek 思考模式（`deepseek-flash`）默认开启。适配器会解析并�
   最近 2 轮与 system 永远保留。
 - 每轮开始写文件快照检查点（跳过 `.git`/构建产物与 >2MB 文件）；`hb rewind restore` 可把代码恢复到快照，
   对话历史不受影响（对标 Claude Code `/rewind` 与 Aider `/undo`）。
+  检查点排除 AppData/OneDrive/包缓存，最多 4000 文件或 128MB；主目录会自动跳过检查点与仓库地图。
 - 编辑工具有 `edit_file`（精确替换）与 `apply_patch`（`*** Begin Patch` 格式，支持新增/删除/更新文件）。
   两者的锚点不唯一都报错，不做模糊匹配。

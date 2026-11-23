@@ -13,11 +13,13 @@ import (
 
 // Checkpoint 是回合开始时的文件快照（对标 Claude Code /rewind 与 Aider /undo）。
 type Checkpoint struct {
-	ID        string                    `json:"id"`
-	TurnID    string                    `json:"turn_id"`
-	Prompt    string                    `json:"prompt"`
-	CreatedAt time.Time                 `json:"created_at"`
-	Files     map[string]checkpointFile `json:"files"`
+	ID         string                    `json:"id"`
+	TurnID     string                    `json:"turn_id"`
+	Prompt     string                    `json:"prompt"`
+	CreatedAt  time.Time                 `json:"created_at"`
+	Files      map[string]checkpointFile `json:"files"`
+	Truncated  bool                      `json:"truncated,omitempty"`
+	TotalBytes int64                     `json:"total_bytes,omitempty"`
 }
 
 type checkpointFile struct {
@@ -26,18 +28,43 @@ type checkpointFile struct {
 	Mode   uint32 `json:"mode"`
 }
 
-var checkpointIgnored = map[string]bool{
+const (
+	maxCheckpointFiles = 4000
+	maxCheckpointBytes = 128 << 20 // 128MB 原文件
+)
+
+// scanIgnoredDirs 是快照与仓库地图共用的目录排除表。
+// AppData/OneDrive/包缓存不参与快照：在主目录启动 hb 时否则会扫描数 GB。
+var scanIgnoredDirs = map[string]bool{
 	".git": true, "node_modules": true, "vendor": true, "bin": true,
 	"dist": true, ".idea": true, "__pycache__": true, ".hb-crash": true,
+	"AppData": true, "OneDrive": true, "Library": true,
+	".cache": true, ".npm": true, ".cargo": true, ".rustup": true,
+	".gradle": true, ".m2": true, ".nuget": true, ".vscode": true,
+	".next": true, ".nuxt": true, ".venv": true, "venv": true, "target": true,
+	"obj": true, "coverage": true, ".pytest_cache": true, ".tox": true,
+	".terraform": true, ".ssh": true, ".aws": true, ".azure": true,
+	".config": true, ".local": true,
 }
 
-// CreateCheckpoint 扫描工作区（跳过忽略目录与 .lock/.jsonl），记录每个文件的字节快照。
+// isHomeDir 判断工作区是否是用户主目录；主目录默认跳过检查点。
+func isHomeDir(dir string) bool {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return false
+	}
+	return strings.EqualFold(filepath.Clean(dir), filepath.Clean(home))
+}
+
+// CreateCheckpoint 扫描工作区（跳过忽略目录与 .lock/.jsonl），记录文件快照。
+// 文件数或总字节超过上限时截断，避免在主目录/巨型仓库里耗尽内存。
 func CreateCheckpoint(workdir, sessionDir, turnID, prompt string) (*Checkpoint, error) {
 	cp := &Checkpoint{
 		ID:     "cp_" + shortID(turnID+time.Now().UTC().Format(time.RFC3339Nano)),
 		TurnID: turnID, Prompt: prompt, CreatedAt: time.Now().UTC(),
 		Files: make(map[string]checkpointFile),
 	}
+	sessionDir = filepath.Clean(sessionDir)
 	err := filepath.WalkDir(workdir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -46,8 +73,13 @@ func CreateCheckpoint(workdir, sessionDir, turnID, prompt string) (*Checkpoint, 
 		if rerr != nil || rel == "." {
 			return nil
 		}
+		// 不要把正在写入的会话目录（含检查点自身）再快照进去。
+		clean := filepath.Clean(path)
+		if clean == sessionDir || strings.HasPrefix(clean, sessionDir+string(os.PathSeparator)) {
+			return filepath.SkipDir
+		}
 		if d.IsDir() {
-			if checkpointIgnored[d.Name()] {
+			if scanIgnoredDirs[d.Name()] {
 				return filepath.SkipDir
 			}
 			return nil
@@ -59,6 +91,10 @@ func CreateCheckpoint(workdir, sessionDir, turnID, prompt string) (*Checkpoint, 
 		if info != nil && info.Size() > 2<<20 {
 			return nil // 大文件不进快照
 		}
+		if len(cp.Files) >= maxCheckpointFiles || cp.TotalBytes >= maxCheckpointBytes {
+			cp.Truncated = true
+			return filepath.SkipAll
+		}
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return nil
@@ -69,6 +105,11 @@ func CreateCheckpoint(workdir, sessionDir, turnID, prompt string) (*Checkpoint, 
 		}
 		cp.Files[filepath.ToSlash(rel)] = checkpointFile{
 			Data: base64.StdEncoding.EncodeToString(data), Exists: true, Mode: mode,
+		}
+		cp.TotalBytes += int64(len(data))
+		if len(cp.Files) >= maxCheckpointFiles || cp.TotalBytes >= maxCheckpointBytes {
+			cp.Truncated = true
+			return filepath.SkipAll
 		}
 		return nil
 	})
@@ -147,7 +188,16 @@ func RestoreCheckpoint(workdir string, cp *Checkpoint) (int, error) {
 	}
 	// 删除快照之后新增的文件（只在快照根内、且不在忽略目录）。
 	_ = filepath.WalkDir(workdir, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if scanIgnoredDirs[d.Name()] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if inIgnoredDir(workdir, path) {
 			return nil
 		}
 		rel, rerr := filepath.Rel(workdir, path)
@@ -155,11 +205,25 @@ func RestoreCheckpoint(workdir string, cp *Checkpoint) (int, error) {
 			return nil
 		}
 		if _, ok := cp.Files[filepath.ToSlash(rel)]; !ok {
-			if !checkpointIgnored[d.Name()] && !strings.HasSuffix(rel, ".lock") && !strings.HasSuffix(rel, ".jsonl") {
+			if !strings.HasSuffix(rel, ".lock") && !strings.HasSuffix(rel, ".jsonl") {
 				_ = os.Remove(path)
 			}
 		}
 		return nil
 	})
 	return restored, nil
+}
+
+// inIgnoredDir 判断路径中是否包含快照忽略目录。
+func inIgnoredDir(workdir, path string) bool {
+	rel, err := filepath.Rel(workdir, path)
+	if err != nil {
+		return true
+	}
+	for _, part := range strings.Split(rel, string(os.PathSeparator)) {
+		if scanIgnoredDirs[part] {
+			return true
+		}
+	}
+	return false
 }

@@ -26,3 +26,4 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
 14. 计划模式与 HTML+shell 任务暴露 `RequiredFor` 真实 bug：未知文件类型与 command 同时存在时只要求 command，导致 `evidence_kind` 误拒；已按“每个未知改动都必须要求 diff”修复并补测试。
 15. DeepSeek 思考模式需要回传 `reasoning_content`；已在 Chat 适配器解析、在 engine 回传，并新增 `reasoning_effort` 配置。思考强度设为 low 后，同等任务输出 token 从 36k 降到约 12k。
 16. 长计划执行还暴露 40 次工具调用上限过紧、自评补救计数跨步累计误伤、`hb approve` 未继承 run 的配置；均已修复（上限 100、有效自评后清零、approve 配置对齐）。
+17. 用户在主目录 `C:\Users\（MC5lan）` 启动 TUI 后“没有动静”：检查点扫描主目录消耗到 3.6GB 内存，且旧终端没有继承新设置的 `HB_API_KEY`。已跳过主目录检查点与仓库地图，检查点增加 4000 文件/128MB 上限并排除 AppData/OneDrive/包缓存；修复后同样主目录的 `hb run` 2 秒完成。

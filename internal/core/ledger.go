@@ -34,9 +34,19 @@ func (l *Ledger) Record(e LedgerEntry) {
 
 // SameFailureRepeated 统计末尾连续的相同 (What, Why) 次数。
 func (l *Ledger) SameFailureRepeated(what, why string) int {
+	return l.FailureRepeatedInTurn(what, why, "")
+}
+
+// FailureRepeatedInTurn 只统计当前回合末尾连续的相同失败；
+// 历史回合的重复失败不应阻断新回合。
+func (l *Ledger) FailureRepeatedInTurn(what, why, turnID string) int {
 	count := 0
 	for i := len(l.entries) - 1; i >= 0; i-- {
-		if l.entries[i].What == what && l.entries[i].Why == why {
+		e := l.entries[i]
+		if turnID != "" && e.TurnID != turnID {
+			break
+		}
+		if e.What == what && e.Why == why {
 			count++
 			continue
 		}
