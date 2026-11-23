@@ -55,6 +55,35 @@ func TestGateSixCases(t *testing.T) {
 			wantAllow: false, wantRule: "evidence_kind",
 		},
 		{
+			// 探索过程中失败的 shell 命令不应阻断本次完成申请。
+			name:  "无关失败证据不阻断",
+			claim: Claim{Req: Requirement{Kinds: []EvidenceKind{EvDiff}, Targets: []string{"index.html"}}},
+			bag: bagOf(
+				gateEvidence("e1", EvDiff, "index.html", true, ProvObserved),
+				gateEvidence("e2", EvCommand, "shell", false, ProvObserved),
+			),
+			wantAllow: true,
+		},
+		{
+			// 参数错误导致的空目标失败 diff，不应覆盖后续成功的同文件写入。
+			name:  "空目标失败证据不阻断",
+			claim: Claim{Req: Requirement{Kinds: []EvidenceKind{EvDiff}, Targets: []string{"index.html"}}},
+			bag: bagOf(
+				gateEvidence("e1", EvDiff, "", false, ProvObserved),
+				gateEvidence("e2", EvDiff, "index.html", true, ProvObserved),
+			),
+			wantAllow: true,
+		},
+		{
+			// 目标上的错误证据类型仍然拒绝：不能拿命令证据冒充文件变更验证。
+			name:  "目标上的错误类型仍拒绝",
+			claim: Claim{Req: Requirement{Kinds: []EvidenceKind{EvDiff}, Targets: []string{"index.html"}}},
+			bag: bagOf(
+				gateEvidence("e1", EvCommand, "index.html", true, ProvObserved),
+			),
+			wantAllow: false, wantRule: "evidence_kind",
+		},
+		{
 			name: "全部满足", claim: c,
 			bag: bagOf(
 				gateEvidence("e1", EvBuild, "./pkg", true, ProvObserved),

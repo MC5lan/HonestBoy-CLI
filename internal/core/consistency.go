@@ -17,7 +17,10 @@ type Surrender struct {
 var selfAssurancePatterns = []*regexp.Regexp{
 	regexp.MustCompile(`我(已经|已)?(确认|验证|检查)过`),
 	regexp.MustCompile(`(确保|保证)(一切|所有)?(正常|没问题|可用)`),
-	regexp.MustCompile(`(测试|构建)?(全部|都)?通过`),
+	// 必须有明确主语或“全部/都”，避免“未通过/无法通过”被误判。
+	regexp.MustCompile(`(测试|构建|检查)(全部|都|已)?(通过|成功)`),
+	regexp.MustCompile(`所有(测试|检查)(都)?(通过|成功)`),
+	regexp.MustCompile(`(全部|都)(通过|成功)`),
 	regexp.MustCompile(`我不会(对你)?说谎`),
 	regexp.MustCompile(`请相信我`),
 	regexp.MustCompile(`我保证`),

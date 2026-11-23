@@ -12,6 +12,99 @@ import (
 	"github.com/MC5lan/HonestBoy-CLI/internal/tools"
 )
 
+// 单文件 HTML 只需要变更证据：写入 + request_done 应能完成。
+func TestHTMLTaskCompletesWithDiff(t *testing.T) {
+	client := &scriptedClient{responses: [][]llm.Chunk{
+		{
+			{Text: "[SELF]\nconf: high\nmissing: none\nassumption: none\nfalsify: none\n"},
+			call("w", "write_file", `{"path":"index.html","content":"<!DOCTYPE html><title>x</title>"}`),
+		},
+		{
+			{Text: "[SELF]\nconf: high\nmissing: none\nassumption: none\nfalsify: none\n"},
+			doneCall("d", "已创建 index.html"),
+		},
+	}}
+	eng := newTestEngine(t, client)
+	eng.cfg.SelfAssessment = true
+	rs := runEngine(t, eng, "创建单文件 HTML")
+	if rs.terminal != core.TermDone {
+		t.Fatalf("terminal = %s, want done", rs.terminal)
+	}
+	if _, err := os.Stat(filepath.Join(eng.cfg.Workdir, "index.html")); err != nil {
+		t.Fatalf("index.html missing: %v", err)
+	}
+}
+
+// 推理模型的输出预算不能按轮数估算，且不得超过上下文窗口的一半。
+func TestMaxOutputTokensBudget(t *testing.T) {
+	mk := func(window int) *Engine {
+		root := t.TempDir()
+		st := store.NewSessionStore(store.Paths{
+			Root: root, Sessions: filepath.Join(root, "sessions"), Logs: filepath.Join(root, "logs"),
+		})
+		e := New(Config{Store: st, ContextWindow: window})
+		t.Cleanup(func() {
+			if e.ledgerFile != nil {
+				e.ledgerFile.Close()
+			}
+		})
+		return e
+	}
+	if got := mk(0).cfg.MaxOutputTokens; got != 32768 {
+		t.Fatalf("default MaxOutputTokens = %d", got)
+	}
+	if got := mk(16000).cfg.MaxOutputTokens; got != 8000 {
+		t.Fatalf("capped MaxOutputTokens = %d, want 8000", got)
+	}
+}
+
+// 缺少 [SELF] 时不执行动作，但给模型一次补救机会；补上后可继续完成。
+func TestMissingSelfRetriesThenContinues(t *testing.T) {
+	client := &scriptedClient{responses: [][]llm.Chunk{
+		{call("w0", "write_file", `{"path":"a.txt","content":"one"}`)},
+		{
+			{Text: "[SELF]\nconf: high\nmissing: none\nassumption: none\nfalsify: none\n"},
+			call("w1", "write_file", `{"path":"a.txt","content":"two"}`),
+		},
+		{
+			{Text: "[SELF]\nconf: high\nmissing: none\nassumption: none\nfalsify: none\n"},
+			doneCall("d", "完成"),
+		},
+	}}
+	eng := newTestEngine(t, client)
+	eng.cfg.SelfAssessment = true
+	rs := runEngine(t, eng, "写文件")
+	if rs.terminal != core.TermDone {
+		t.Fatalf("terminal = %s", rs.terminal)
+	}
+	if countEvents(rs, core.EvtToolStart) != 1 {
+		t.Fatalf("rejected step must not execute tools, tool_start=%d", countEvents(rs, core.EvtToolStart))
+	}
+	got, err := os.ReadFile(filepath.Join(eng.cfg.Workdir, "a.txt"))
+	if err != nil || string(got) != "two" {
+		t.Fatalf("file = %q, err = %v", got, err)
+	}
+}
+
+// 连续缺失自评块超过补救次数后仍要终止，不能无限重试。
+func TestMissingSelfExhausts(t *testing.T) {
+	client := &scriptedClient{responses: [][]llm.Chunk{
+		{call("w1", "write_file", `{"path":"a.txt","content":"one"}`)},
+		{call("w2", "write_file", `{"path":"a.txt","content":"one"}`)},
+		{call("w3", "write_file", `{"path":"a.txt","content":"one"}`)},
+		{call("w4", "write_file", `{"path":"a.txt","content":"one"}`)},
+	}}
+	eng := newTestEngine(t, client)
+	eng.cfg.SelfAssessment = true
+	rs := runEngine(t, eng, "写文件")
+	if rs.terminal != core.TermHalt {
+		t.Fatalf("terminal = %s, want halt", rs.terminal)
+	}
+	if countEvents(rs, core.EvtToolStart) != 0 {
+		t.Fatal("no write should execute without self-assessment")
+	}
+}
+
 // 文档 §4.2：含悬空指代的输入必须暂停，不能瞎猜目标。
 func TestAmbiguityHalt(t *testing.T) {
 	client := &scriptedClient{responses: [][]llm.Chunk{

@@ -36,6 +36,9 @@ type Config struct {
 	AmbiguityHalt   bool // 歧义暂停（文档 §4.2）
 	LedgerRecall    bool // 历史失败案例注入（文档 §3.5）
 	PlanFirst       bool // 写操作前必须给测试计划（文档 §4.3）
+	// MaxOutputTokens 是单次模型响应的输出预算（含推理 token）。
+	// 不能按轮数估算：推理模型会把预算耗在思考上，导致空响应。
+	MaxOutputTokens int
 	Tracer          *core.Tracer
 }
 
@@ -88,6 +91,12 @@ func New(cfg Config) *Engine {
 	}
 	if cfg.Approval.Net == "" {
 		cfg.Approval.Net = "ask"
+	}
+	if cfg.MaxOutputTokens <= 0 {
+		cfg.MaxOutputTokens = 32768
+	}
+	if cfg.ContextWindow > 0 && cfg.MaxOutputTokens > cfg.ContextWindow/2 {
+		cfg.MaxOutputTokens = cfg.ContextWindow / 2
 	}
 	e := &Engine{
 		cfg: cfg, bus: NewEventBus(), gate: core.NewGate(core.Policy{Strict: true}),
@@ -237,13 +246,18 @@ func toolSpecs(r *tools.Registry) []llm.ToolSpec {
 const systemPrompt = `你是 Honest Boy，一个本地编程智能体。
 
 系统运转规则（描述事实，不是对你的要求）：
-1. “完成”状态由独立门禁写入。门禁只接受验证器（verify_build / verify_test / verify_vet）的实际运行输出。自然语言不构成状态变更。
-2. 想结束回合，须调用 request_done 工具；门禁会检查证据覆盖全部改动目标，不满足则把缺口作为工具结果回传，最多补救两轮。
-3. 无法验证时调用 declare_untested 工具；这是一个合法的三态出口（done / untested / denied）。
+1. “完成”状态由独立门禁写入。完成所需证据由本回合的实际改动决定：
+   - write_file / edit_file / apply_patch 成功：文件变更证据（diff）
+   - shell 成功：命令证据（command）
+   - verify_build / verify_test / verify_vet 实际运行：build / test / vet 证据
+   .go 文件需要 build + test + diff；.md/.json/.yaml 需要 file + diff + 回读；
+   其他文件（如 .html）需要 diff；执行过 shell 需要 command。自然语言不构成状态变更。
+2. 想结束回合，须调用 request_done，参数为 {"summary":"本回合摘要"}；门禁会检查证据覆盖全部改动目标，不满足则把缺口作为工具结果回传，最多补救两轮。
+3. 无法验证时调用 declare_untested，参数为 {"reason":"...","not_done":["..."],"done":[...],"next":"..."}；reason 与 not_done 必填。这是一个合法的三态出口（done / untested / denied）。
 4. 验证器输出原文由系统原样保留并截断；下游改写不会影响已记录的哈希链。
 5. 同一失败重复三次，回合自动转入 halt。
 
 工具用法：
-- read_file 会记录文件哈希，随后才能 edit_file；edit_file 的 old 片段必须唯一，否则报错。
-- shell 有超时与输出上限，超时由系统中断。
-- apply_patch 接受 *** Begin Patch 格式。`
+- write_file 必须同时提供 path 与 content；read_file 会记录文件哈希，随后才能 edit_file。
+- edit_file 的 old 片段必须唯一，否则报错；apply_patch 接受 *** Begin Patch 格式。
+- shell 结果会附带退出码；空输出不代表失败，以退出码为准。shell 有超时与输出上限，超时由系统中断。`

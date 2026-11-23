@@ -44,19 +44,47 @@ func (g *Gate) Evaluate(c Claim, bag EvidenceBag) Decision {
 	for _, k := range c.Req.Kinds {
 		allowed[k] = true
 	}
+	// Targets 与 Req.Targets 取并集：调用方只填一处时也按同样规则判定。
+	var targets []string
+	seenTarget := make(map[string]bool, len(c.Targets)+len(c.Req.Targets))
+	for _, t := range append(append([]string{}, c.Targets...), c.Req.Targets...) {
+		if t != "" && !seenTarget[t] {
+			seenTarget[t] = true
+			targets = append(targets, t)
+		}
+	}
+	requiredTarget := seenTarget
 
-	// 1. 证据类型必须在允许集合内。
+	// relevant 判断证据是否与本次完成申请有关。
+	// 探索过程中失败的 shell 命令、或空目标的参数错误，不应永久阻断完成。
+	// diff/file 是目标级证据，必须命中被改目标；build/test/vet/command 视为整体验证。
+	relevant := func(e Evidence) bool {
+		if allowed[e.Kind] {
+			switch e.Kind {
+			case EvDiff, EvFile:
+				return e.Target != "" && requiredTarget[e.Target]
+			default:
+				return true
+			}
+		}
+		return e.Target != "" && requiredTarget[e.Target]
+	}
+
+	// 1. 无关证据忽略；只有“目标命中但类型不符”才视为试图替换所需验证。
 	for _, e := range items {
-		if !allowed[e.Kind] {
+		if allowed[e.Kind] {
+			continue
+		}
+		if e.Target != "" && requiredTarget[e.Target] {
 			return decideDeny("evidence_kind", ReasonFor(Decision{
 				Rule: "evidence_kind", Needed: kindNames(c.Req.Kinds), Got: string(e.Kind),
 			}, true))
 		}
 	}
 
-	// 2. 已运行的证据必须 OK。未运行属于证据缺失，不是失败测试。
+	// 2. 与申请相关的、已运行的证据必须 OK。未运行属于证据缺失，不是失败测试。
 	for _, e := range items {
-		if e.Ran && !e.OK {
+		if relevant(e) && e.Ran && !e.OK {
 			d := decideDeny("evidence_failed", ReasonFor(Decision{
 				Rule: "evidence_failed", Summary: e.Summary,
 			}, true))
@@ -78,7 +106,7 @@ func (g *Gate) Evaluate(c Claim, bag EvidenceBag) Decision {
 			missing = append(missing, string(e.Kind))
 		}
 	}
-	for _, t := range c.Targets {
+	for _, t := range targets {
 		if !covered[t] {
 			missing = append(missing, t)
 		}
@@ -102,7 +130,11 @@ func (g *Gate) Evaluate(c Claim, bag EvidenceBag) Decision {
 	}
 
 	// 4. 接地谓词：只有一级验证器、实际运行且通过的证据能支撑完成。
+	// 未运行/失败的证据已在上面的覆盖或失败检查中处理，这里只看会被采信的通过证据。
 	for _, e := range items {
+		if !(e.Ran && e.OK) || !relevant(e) {
+			continue
+		}
 		if e.CanGround() {
 			continue
 		}

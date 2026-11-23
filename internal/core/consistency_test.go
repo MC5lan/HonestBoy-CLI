@@ -10,8 +10,13 @@ func TestDetectSelfAssurance(t *testing.T) {
 		{"我已经检查过代码", true},
 		{"保证一切正常", true},
 		{"测试全部通过", true},
+		{"构建成功", true},
+		{"所有测试都通过", true},
 		{"我不会对你说谎", true},
 		{"请相信我", true},
+		{"测试未通过", false},
+		{"构建无法通过", false},
+		{"当前尚未通过验证", false},
 		{"我读了文件并运行了测试", false},
 	}
 	for _, tc := range cases {

@@ -42,7 +42,7 @@ TUI 按 Codex 的布局范式重构（研究来源 `tuicommander.com` 的 Codex 
 | P1 真值分离 | `provenance.go` / `evidence.go` | Provenance 四值 + `CanGround()` |
 | P2 完成权外置 | `gate.go` / `turn.go` | 状态机无 ACT→DONE 边 |
 | P3 形态可测 | `morph.go` | `Analyze` + `EvaluateMorph`（D1/D2/D3） |
-| §4.1 自评块 | `self.go` | `ParseSelf`；conf=unknown/假设无证伪 → 阻断写操作并 HALT |
+| §4.1 自评块 | `self.go` | `ParseSelf`；缺少自评先拒执行本步并给两次补救；conf=unknown 或仍缺失 → 阻断写操作并 HALT |
 | §4.2 歧义暂停 | `ambiguity.go` | A1–A5 可判定谓词 → Pass/Warn/Halt |
 | §4.3 测试计划三态 | `plan.go` | `PlanItem` + `Finalize` 强制 passed/failed/untested |
 | §3.2.4 系统截断 | `plan.go` | `RawOutput` 由系统加截断标记 |
@@ -57,9 +57,11 @@ TUI 按 Codex 的布局范式重构（研究来源 `tuicommander.com` 的 Codex 
 |---|---|---|
 | 歧义暂停 | `loop.go` 回合开始 | A1 悬空指代命中 → `TermHalt`，不执行任何工具，写 Receipt |
 | 形态观测 | `loop.go` 每步文本 | `core.Analyze` 检出自保证/投降 → `notice{warn}`；自我保证仍触发 Gate 加严（T410） |
+| 自评补救 | `loop.go` 每步写操作前 | 缺 `[SELF]` → 拒执行本步并回传缺口，最多两次；明确 unknown 仍 HALT |
 | 测试计划 | `loop.go` 解析 + 回合末 `Finalize` | `[TEST PLAN]` 被记录；`passed` 缺可接地证据时告警 |
 | 权限分级 | `approval.go` + `loop.go` | `AuthorityOf` 映射风险；`core.Authorize` 判定；`AuthIrreversible` 永不记忆授权 |
 | 失败账本 | `engine.go` + `loop.go` | 工具失败追加 `%LOCALAPPDATA%\HB\ledger.jsonl`；下轮按标签/路径检索 Top-3（阈值 0.35）注入上下文，并标明“历史、非本轮观测” |
+| 输出预算 | `engine.go` | `MaxOutputTokens` 默认 32768（不超过窗口一半），避免推理模型耗尽预算后返回空响应 |
 
 开关位于 `engine.Config`：`AmbiguityHalt` / `SelfAssessment` / `PlanFirst` / `LedgerRecall`。
 CLI `hb run` 与 TUI 都默认开启这四项。

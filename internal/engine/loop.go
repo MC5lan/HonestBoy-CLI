@@ -28,6 +28,7 @@ func (e *Engine) runTurn(ctx context.Context, input string) (core.Terminal, erro
 	toolCalls := 0
 	remediation := 0
 	abstainRetries := 0
+	selfRetries := 0
 	terminal := core.Terminal("")
 
 	e.emit(core.EvtTurnStart, core.TurnStartData{Input: input, Model: e.cfg.Model})
@@ -103,7 +104,7 @@ steps:
 		}
 		req := llm.Request{
 			Model: e.cfg.Model, Messages: messages, Tools: specs,
-			MaxTokens: e.cfg.MaxTurns * 512,
+			MaxTokens: e.cfg.MaxOutputTokens,
 		}
 		chunks, errCh := e.cfg.ResolveClient().Stream(ctx, req)
 		var text strings.Builder
@@ -176,9 +177,29 @@ steps:
 			e.cfg.Tracer.RecordClaim(text.String(), "thinking", false)
 		}
 		if e.cfg.SelfAssessment && sa.BlocksWrite() && hasWriteCall(calls) {
+			// 缺少自评块时先拒执行本步并给模型一次补救机会；
+			// 明确 conf=unknown 或多次缺失才终止回合。
+			if !selfOK && selfRetries < 2 {
+				selfRetries++
+				e.emit(core.EvtNotice, core.NoticeData{
+					Level: "warn", Text: "缺少 [SELF] 自评块，本步动作未执行；请补自评后重试",
+				})
+				messages = append(messages, llm.Message{Role: "assistant", Content: text.String(), Calls: calls})
+				for _, c := range calls {
+					reason := "缺少 [SELF] 自评块，本步未执行"
+					e.emit(core.EvtToolDenied, core.ToolDeniedData{CallID: c.ID, Reason: reason})
+					e.emit(core.EvtToolEnd, core.ToolEndData{CallID: c.ID, OK: false, Output: reason})
+					messages = append(messages, toolResultMsg(c.ID, "系统拒绝执行："+reason+"。请先输出自评块再重试。"))
+				}
+				continue steps
+			}
 			reason := "自评置信度为 unknown 或假设缺少证伪条件，本轮不执行写操作"
-			if sa.Conf == "" {
+			if !selfOK {
 				reason = "未输出自评块，按 unknown 处理；本轮不执行写操作"
+			}
+			for _, c := range calls {
+				e.emit(core.EvtToolDenied, core.ToolDeniedData{CallID: c.ID, Reason: reason})
+				e.emit(core.EvtToolEnd, core.ToolEndData{CallID: c.ID, OK: false, Output: reason})
 			}
 			e.emit(core.EvtNotice, core.NoticeData{Level: "warn", Text: reason})
 			if e.cfg.Tracer != nil {
@@ -201,6 +222,14 @@ steps:
 		}
 		// 模型没有走工具申请完成：只回答不申请 → untested（T402）。
 		if len(calls) == 0 {
+			// 自评被拒后模型没有任何输出，说明补救无法继续；按 halt 结束而不是伪装成弃权。
+			if selfRetries > 0 && strings.TrimSpace(text.String()) == "" {
+				reason := "模型在自评补救后未返回任何动作"
+				e.emit(core.EvtNotice, core.NoticeData{Level: "warn", Text: reason})
+				e.writeReceipt(core.TermHalt, reason)
+				_ = turn.Transition(core.StClosed)
+				return core.TermHalt, nil
+			}
 			a := core.Abstain{
 				Reason: "未提交完成申请", Done: []string{text.String()},
 				NotDone: []string{"未声明完成依据", "未调用 request_done"},
@@ -421,6 +450,16 @@ steps:
 					changes = append(changes, core.Change{Kind: core.ChangeCommand})
 				}
 				result = tools.Compress(r.Output)
+				if call.Name == "shell" {
+					// shell 成功但无输出很常见（如 node --check）；把退出码回传给模型，
+					// 避免它把“空输出”误判成失败。
+					code := r.Meta["exit_code"]
+					if strings.TrimSpace(result) == "" {
+						result = "(命令结束，退出码 " + code + "，无输出)"
+					} else {
+						result = "(退出码 " + code + ")\n" + result
+					}
+				}
 				if call.Name == "read_file" {
 					if outside, handled := e.outsideRead(ctx, call, result, input); handled {
 						result = outside
