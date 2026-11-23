@@ -1,6 +1,9 @@
 package tui
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // keyBinding 是快捷键表的单条记录；help 页与文档一致性测试共用同一来源。
 type keyBinding struct {
@@ -29,7 +32,7 @@ func KeyBindings() []string {
 }
 
 // helpPage 渲染快捷键与常用命令帮助。
-func (m *Model) helpPage(width int) string {
+func (m *Model) helpPage() string {
 	var lines []string
 	lines = append(lines, m.th.AccentStyle().Render("快捷键"))
 	for _, b := range keyBindings {
@@ -42,16 +45,5 @@ func (m *Model) helpPage(width int) string {
 	}
 	lines = append(lines, "")
 	lines = append(lines, m.th.DimStyle().Render("? / Esc 关闭 · 输入 / 看命令面板"))
-	return joinHelpLines(lines, width)
-}
-
-func joinHelpLines(lines []string, width int) string {
-	out := ""
-	for i, line := range lines {
-		if i > 0 {
-			out += "\n"
-		}
-		out += line
-	}
-	return out
+	return strings.Join(lines, "\n")
 }

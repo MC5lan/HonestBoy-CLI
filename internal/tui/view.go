@@ -114,11 +114,7 @@ func (m *Model) View() string {
 	// 对话区 + 右侧可观测面板（宽屏时分栏，窄屏隐藏面板）。
 	body := m.view.View()
 	if m.showHelp {
-		width := m.width - 4
-		if width < 40 {
-			width = 40
-		}
-		body = m.helpPage(width)
+		body = m.helpPage()
 	} else if len(m.blocks) == 0 {
 		body = "  " + m.th.DimStyle().Render("输入任务开始，过程会显示在这个框里。") + "\n" +
 			"  " + m.th.DimStyle().Render("/ 命令面板 · ? 快捷键 · Enter 提交")
