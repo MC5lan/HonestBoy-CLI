@@ -77,10 +77,12 @@ func RequiredFor(changes []Change) Requirement {
 			continue // 空改动不产生证据要求
 		}
 		effective++
+		matched := false
 		for _, rule := range changeRules {
 			if !rule.match(c) {
 				continue
 			}
+			matched = true
 			for _, k := range rule.kinds {
 				if !seenKinds[k] {
 					seenKinds[k] = true
@@ -95,6 +97,18 @@ func RequiredFor(changes []Change) Requirement {
 			}
 			if rule.noEvidence {
 				answerCount++
+			}
+			if c.Path != "" && !seenTargets[c.Path] {
+				seenTargets[c.Path] = true
+				r.Targets = append(r.Targets, c.Path)
+			}
+		}
+		// 未命中规则的未知文件类型（如 .html/.css）也必须至少要求变更证据。
+		// 不能依赖循环后的全局兜底：只要同时存在 command 改动，全局兜底就不会触发。
+		if !matched {
+			if !seenKinds[EvDiff] {
+				seenKinds[EvDiff] = true
+				r.Kinds = append(r.Kinds, EvDiff)
 			}
 			if c.Path != "" && !seenTargets[c.Path] {
 				seenTargets[c.Path] = true

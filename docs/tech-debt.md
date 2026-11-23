@@ -10,3 +10,4 @@
 | D04 | 上下文预算用字符估算 token，中文偏差约 ±20% | 精度 | 偶尔提前裁剪 | 长会话 | v1.1 换真实 tokenizer | 已知可接受 |
 | D05 | winget/scoop 清单里的 SHA256 仍是占位符 | 发布 | 包管理器安装会校验失败 | 首次正式发布前 | 发布产物生成后回填真实哈希；CI 增加校验步骤 | 待发布 |
 | D06 | `hb upgrade` 尚未对 GitHub 真实 release 验证 | 验证 | 真实发布资产缺失时只能得到 404 | 首个 release 发布后 | 已用 goreleaser snapshot 产物（真实 zip + checksums）经本地 HTTP 完成一次实际升级并校验版本；GitHub 真实 release 待首个 tag 后补测 | 部分验证 |
+| D07 | 纯静态 HTML 的完成只要求 diff 证据，视觉与运行时正确性不由 Gate 验证 | 精度 | 可能出现 `done` 但页面 JS 报错 | 非 Go/JS 构建项目 | v0.2 评估 `verify_html`（HTML 解析 + headless 冒烟）；当前靠截图/人工验收 | 已知可接受 |

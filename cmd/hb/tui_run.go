@@ -61,6 +61,9 @@ func runTUI(resumeID string) error {
 			SelfAssessment:  true,
 			AmbiguityHalt:   true,
 			LedgerRecall:    true,
+			PlanFirst:       true,
+			ReasoningEffort: cfg.ReasoningEffort,
+			ContextWindow:   128000,
 			Tracer:          core.NewTracer(filepath.Join(store.DefaultPaths().Root, "trace")),
 		})
 		return eng.Run(ctx, prompt)

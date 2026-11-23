@@ -104,19 +104,27 @@ steps:
 		}
 		req := llm.Request{
 			Model: e.cfg.Model, Messages: messages, Tools: specs,
-			MaxTokens: e.cfg.MaxOutputTokens,
+			MaxTokens: e.cfg.MaxOutputTokens, ReasoningEffort: e.cfg.ReasoningEffort,
 		}
 		chunks, errCh := e.cfg.ResolveClient().Stream(ctx, req)
 		var text strings.Builder
+		var reasoning strings.Builder
 		var calls []llm.ToolCall
 		var stepUsage llm.Usage
 		streamDone := false
+		truncated := false
 		for !streamDone {
 			select {
 			case c, ok := <-chunks:
 				if !ok {
 					streamDone = true
 					continue
+				}
+				if c.Reasoning != "" {
+					reasoning.WriteString(c.Reasoning)
+				}
+				if c.Truncated {
+					truncated = true
 				}
 				if c.Text != "" {
 					text.WriteString(c.Text)
@@ -149,6 +157,15 @@ steps:
 				CostMicros: e.usage.CostMicros,
 			})
 		}
+		// 输出被 max_tokens 截断且没有任何工具调用：本步没有可执行结果，
+		// 不能伪装成“未验证”，按失败结束并给出原因。
+		if truncated && len(calls) == 0 {
+			msg := "模型输出达到 max_tokens 上限（推理可能耗尽预算），本步没有产生工具调用"
+			e.emit(core.EvtError, core.ErrorData{Message: msg})
+			e.writeReceipt(core.TermFailed, msg)
+			_ = turn.Transition(core.StClosed)
+			return core.TermFailed, nil
+		}
 
 		// 形态观测（文档 §5）：确定性规则检测自我保证/投降表述，只警告不改判据。
 		if text.Len() > 0 {
@@ -173,6 +190,11 @@ steps:
 		if e.cfg.SelfAssessment && !selfOK {
 			sa = core.SelfAssessment{Conf: "unknown"}
 		}
+		if selfOK {
+			// 一次合规自评即清零连续缺失计数：偶发遗漏可补救，
+			// 只有连续多次缺失才终止回合。
+			selfRetries = 0
+		}
 		if e.cfg.Tracer != nil {
 			e.cfg.Tracer.RecordClaim(text.String(), "thinking", false)
 		}
@@ -184,7 +206,7 @@ steps:
 				e.emit(core.EvtNotice, core.NoticeData{
 					Level: "warn", Text: "缺少 [SELF] 自评块，本步动作未执行；请补自评后重试",
 				})
-				messages = append(messages, llm.Message{Role: "assistant", Content: text.String(), Calls: calls})
+				messages = append(messages, llm.Message{Role: "assistant", Content: text.String(), Calls: calls, Reasoning: reasoning.String()})
 				for _, c := range calls {
 					reason := "缺少 [SELF] 自评块，本步未执行"
 					e.emit(core.EvtToolDenied, core.ToolDeniedData{CallID: c.ID, Reason: reason})
@@ -245,6 +267,8 @@ steps:
 			toolCalls++
 			if halt, reason := e.guard.Check(e.ledger, toolCalls); halt {
 				e.emit(core.EvtNotice, core.NoticeData{Level: "error", Text: reason})
+				e.writeReceipt(core.TermHalt, reason)
+				_ = turn.Transition(core.StClosed)
 				return core.TermHalt, errors.New(reason)
 			} else if reason != "" {
 				e.emit(core.EvtNotice, core.NoticeData{Level: "warn", Text: reason})
@@ -472,7 +496,7 @@ steps:
 		if stop {
 			break steps
 		}
-		messages = append(messages, llm.Message{Role: "assistant", Content: text.String(), Calls: calls})
+		messages = append(messages, llm.Message{Role: "assistant", Content: text.String(), Calls: calls, Reasoning: reasoning.String()})
 		messages = append(messages, toolResults...)
 	}
 	if terminal == "" {

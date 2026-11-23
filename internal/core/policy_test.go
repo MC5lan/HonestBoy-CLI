@@ -28,6 +28,8 @@ func TestRequiredForFiveScenarios(t *testing.T) {
 		{"no-changes", nil, nil, false, false, true, nil},
 		{"yaml-config", []Change{{Path: "config.yaml"}},
 			[]EvidenceKind{EvFile, EvDiff}, true, false, false, []string{"config.yaml"}},
+		{"html-plus-command", []Change{{Path: "index.html"}, {Kind: ChangeCommand}},
+			[]EvidenceKind{EvDiff, EvCommand}, false, false, false, []string{"index.html"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

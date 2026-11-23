@@ -39,6 +39,8 @@ type Config struct {
 	// MaxOutputTokens 是单次模型响应的输出预算（含推理 token）。
 	// 不能按轮数估算：推理模型会把预算耗在思考上，导致空响应。
 	MaxOutputTokens int
+	// ReasoningEffort 是思考强度（low/high/max）；空表示用提供方默认。
+	ReasoningEffort string
 	Tracer          *core.Tracer
 }
 
@@ -93,7 +95,7 @@ func New(cfg Config) *Engine {
 		cfg.Approval.Net = "ask"
 	}
 	if cfg.MaxOutputTokens <= 0 {
-		cfg.MaxOutputTokens = 32768
+		cfg.MaxOutputTokens = 65536
 	}
 	if cfg.ContextWindow > 0 && cfg.MaxOutputTokens > cfg.ContextWindow/2 {
 		cfg.MaxOutputTokens = cfg.ContextWindow / 2

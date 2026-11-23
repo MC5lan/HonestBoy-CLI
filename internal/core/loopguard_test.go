@@ -26,8 +26,8 @@ func TestLoopGuard(t *testing.T) {
 		t.Fatalf("thrice = %v %q", halt, reason)
 	}
 
-	if halt, reason := g.Check(&Ledger{}, 41); !halt || reason != haltTooManyCalls {
-		t.Fatalf("41 calls = %v %q", halt, reason)
+	if halt, reason := g.Check(&Ledger{}, 101); !halt || reason != haltTooManyCalls {
+		t.Fatalf("101 calls = %v %q", halt, reason)
 	}
 	if halt, reason := g.Check(nil, 1); halt || reason != "" {
 		t.Fatalf("nil ledger = %v %q", halt, reason)

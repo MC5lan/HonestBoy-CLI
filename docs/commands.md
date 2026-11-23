@@ -73,6 +73,9 @@
 其余 → Chat Completions。若 base_url 只含 `/v1`（最常见），Responses 需显式传 `--protocol responses`。
 密钥只从环境变量读（默认 `HB_API_KEY`），配置里只存环境变量名。
 
+DeepSeek 思考模式（`deepseek-flash`）默认开启。适配器会解析并回传 `reasoning_content`；
+可用 `hb config set reasoning_effort low|high|max` 控制思考强度，编程任务通常 `low` 足够。
+
 ## 上下文与撤销
 
 - 每轮自动装配：系统提示 → `HB.md`/`AGENTS.md` → 环境（OS/cwd/日期 + `git status --short` 与 `git diff --stat`）→ 任务。

@@ -49,12 +49,25 @@ func RunApprove(opts GlobalOptions, args []string) error {
 	defer sb.Close()
 
 	cfg, _ := store.Load()
+	approval := engine.ApprovalPolicy{
+		Write: firstNonEmpty(cfg.Approval.Write, "auto"),
+		Exec:  cfg.Approval.Exec,
+		Net:   cfg.Approval.Net,
+	}
+	if opts.Yes {
+		approval.Write = "auto"
+	}
 	eng := engine.New(engine.Config{
 		Workdir: workdir, Model: firstNonEmpty(opts.Model, cfg.Model),
 		Protocol: cfg.Protocol, BaseURL: cfg.BaseURL,
 		APIKey:   os.Getenv(cfg.APIKeyEnv),
 		Registry: tools.NewDefaultRegistry(sb, tools.NewReadGuard(), cfg.Shell),
-		MaxTurns: opts.MaxTurns,
+		Approval: approval, MaxTurns: opts.MaxTurns,
+		SelfAssessment:  true,
+		AmbiguityHalt:   true,
+		LedgerRecall:    true,
+		PlanFirst:       true,
+		ReasoningEffort: cfg.ReasoningEffort,
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), parseTimeout(opts.Timeout, cfg.Timeout))
 	defer cancel()

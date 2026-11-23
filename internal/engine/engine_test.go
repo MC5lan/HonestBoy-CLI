@@ -16,9 +16,11 @@ import (
 type scriptedClient struct {
 	responses [][]llm.Chunk
 	index     int
+	requests  []llm.Request
 }
 
 func (c *scriptedClient) Stream(ctx context.Context, req llm.Request) (<-chan llm.Chunk, <-chan error) {
+	c.requests = append(c.requests, req)
 	i := c.index
 	c.index++
 	chunks := make(chan llm.Chunk, 16)

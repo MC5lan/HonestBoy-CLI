@@ -50,11 +50,53 @@ func TestMaxOutputTokensBudget(t *testing.T) {
 		})
 		return e
 	}
-	if got := mk(0).cfg.MaxOutputTokens; got != 32768 {
+	if got := mk(0).cfg.MaxOutputTokens; got != 65536 {
 		t.Fatalf("default MaxOutputTokens = %d", got)
 	}
 	if got := mk(16000).cfg.MaxOutputTokens; got != 8000 {
 		t.Fatalf("capped MaxOutputTokens = %d, want 8000", got)
+	}
+}
+
+// 思考内容必须回传给后续请求（DeepSeek 带 tools 的思考模式要求）。
+func TestReasoningPassedBack(t *testing.T) {
+	client := &scriptedClient{responses: [][]llm.Chunk{
+		{
+			{Reasoning: "先读一下", Text: "[SELF]\nconf: high\nmissing: none\nassumption: none\nfalsify: none\n"},
+			call("w", "write_file", `{"path":"a.txt","content":"x"}`),
+		},
+		{
+			{Reasoning: "再收尾", Text: "[SELF]\nconf: high\nmissing: none\nassumption: none\nfalsify: none\n"},
+			doneCall("d", "完成"),
+		},
+	}}
+	eng := newTestEngine(t, client)
+	eng.cfg.SelfAssessment = true
+	rs := runEngine(t, eng, "写文件")
+	if rs.terminal != core.TermDone {
+		t.Fatalf("terminal = %s", rs.terminal)
+	}
+	if len(client.requests) != 2 {
+		t.Fatalf("requests = %d", len(client.requests))
+	}
+	found := false
+	for _, m := range client.requests[1].Messages {
+		if m.Role == "assistant" && m.Reasoning == "先读一下" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("assistant reasoning_content not passed back")
+	}
+}
+
+// 输出被 max_tokens 截断且没有工具调用时必须失败，不能伪装成 untested。
+func TestTruncatedResponseFails(t *testing.T) {
+	client := &scriptedClient{responses: [][]llm.Chunk{{{Truncated: true}}}}
+	eng := newTestEngine(t, client)
+	rs := runEngine(t, eng, "写文件")
+	if rs.terminal != core.TermFailed {
+		t.Fatalf("terminal = %s, want failed", rs.terminal)
 	}
 }
 

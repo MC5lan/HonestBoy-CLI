@@ -61,7 +61,8 @@ TUI 按 Codex 的布局范式重构（研究来源 `tuicommander.com` 的 Codex 
 | 测试计划 | `loop.go` 解析 + 回合末 `Finalize` | `[TEST PLAN]` 被记录；`passed` 缺可接地证据时告警 |
 | 权限分级 | `approval.go` + `loop.go` | `AuthorityOf` 映射风险；`core.Authorize` 判定；`AuthIrreversible` 永不记忆授权 |
 | 失败账本 | `engine.go` + `loop.go` | 工具失败追加 `%LOCALAPPDATA%\HB\ledger.jsonl`；下轮按标签/路径检索 Top-3（阈值 0.35）注入上下文，并标明“历史、非本轮观测” |
-| 输出预算 | `engine.go` | `MaxOutputTokens` 默认 32768（不超过窗口一半），避免推理模型耗尽预算后返回空响应 |
+| 输出预算 | `engine.go` | `MaxOutputTokens` 默认 65536（不超过窗口一半）；`finish_reason=length` 且无工具调用按 failed 结束 |
+| 思考模式 | `llm/openai_chat.go` + `engine` | 解析并回传 `reasoning_content`；`reasoning_effort` 可配为 low/high/max |
 
 开关位于 `engine.Config`：`AmbiguityHalt` / `SelfAssessment` / `PlanFirst` / `LedgerRecall`。
 CLI `hb run` 与 TUI 都默认开启这四项。

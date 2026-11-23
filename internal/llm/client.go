@@ -11,24 +11,30 @@ type Message struct {
 	Content string
 	ToolID  string
 	Calls   []ToolCall
+	// Reasoning 是 DeepSeek 思考模式的 reasoning_content。
+	// 请求带 tools 时必须原样回传，否则 API 无法延续上一轮推理。
+	Reasoning string
 }
 
 type ToolCall struct{ ID, Name, Args string }
 
 type Request struct {
-	Model       string
-	Messages    []Message
-	Tools       []ToolSpec
-	MaxTokens   int
-	Temperature float64
-	Stop        []string
+	Model           string
+	Messages        []Message
+	Tools           []ToolSpec
+	MaxTokens       int
+	Temperature     float64
+	Stop            []string
+	ReasoningEffort string // low | high | max；空表示由提供方决定
 }
 
 type Chunk struct {
-	Text  string
-	Call  *ToolCall
-	Usage *Usage
-	Done  bool
+	Text      string
+	Reasoning string // 思考内容（DeepSeek reasoning_content）
+	Call      *ToolCall
+	Usage     *Usage
+	Done      bool
+	Truncated bool // finish_reason=length：本步输出被 max_tokens 截断
 }
 
 type ToolSpec struct {

@@ -40,6 +40,65 @@ func usageChunk(in, out int) string {
 	return string(b)
 }
 
+func TestChatReasoningContent(t *testing.T) {
+	reasoning := map[string]any{
+		"choices": []any{map[string]any{"delta": map[string]any{"reasoning_content": "先想一步"}, "finish_reason": nil}},
+	}
+	rb, _ := json.Marshal(reasoning)
+	srv := testserver.New(t, testserver.Script{Responses: [][]string{
+		{string(rb), chatChunk("答案")},
+	}})
+	c := NewChatClient(srv.URL, "sk-test", "deepseek-flash")
+	chunks, errs := c.Stream(context.Background(), Request{Messages: []Message{{Role: "user", Content: "hi"}}})
+	var think, text string
+	for chunk := range chunks {
+		think += chunk.Reasoning
+		text += chunk.Text
+	}
+	if err := <-errs; err != nil {
+		t.Fatal(err)
+	}
+	if think != "先想一步" || text != "答案" {
+		t.Fatalf("reasoning=%q text=%q", think, text)
+	}
+}
+
+func TestChatTruncatedFinish(t *testing.T) {
+	stop := "length"
+	raw, _ := json.Marshal(map[string]any{
+		"choices": []any{map[string]any{"delta": map[string]any{}, "finish_reason": stop}},
+	})
+	srv := testserver.New(t, testserver.Script{Responses: [][]string{{string(raw)}}})
+	c := NewChatClient(srv.URL, "sk-test", "deepseek-flash")
+	chunks, errs := c.Stream(context.Background(), Request{Messages: []Message{{Role: "user", Content: "hi"}}})
+	truncated := false
+	for chunk := range chunks {
+		if chunk.Truncated {
+			truncated = true
+		}
+	}
+	if err := <-errs; err != nil {
+		t.Fatal(err)
+	}
+	if !truncated {
+		t.Fatal("finish_reason=length should mark the chunk truncated")
+	}
+}
+
+// 带 tools 的后续请求必须回传 reasoning_content（DeepSeek 思考模式要求）。
+func TestWireMessagesCarryReasoning(t *testing.T) {
+	wire := toWireMessages([]Message{{
+		Role: "assistant", Content: "", Reasoning: "上一轮推理",
+		Calls: []ToolCall{{ID: "c1", Name: "read_file", Args: `{"path":"a"}`}},
+	}})
+	if len(wire) != 1 {
+		t.Fatalf("wire = %v", wire)
+	}
+	if got := wire[0]["reasoning_content"]; got != "上一轮推理" {
+		t.Fatalf("reasoning_content = %v", got)
+	}
+}
+
 func TestChatStreamText(t *testing.T) {
 	srv := testserver.New(t, testserver.Script{Responses: [][]string{
 		{chatChunk("你好"), chatChunk("，世界"), usageChunk(10, 3)},

@@ -120,6 +120,24 @@ func TestGateSixCases(t *testing.T) {
 	}
 }
 
+// 未知文件类型与 command 同时存在时，必须同时要求 diff 与 command。
+func TestGateHTMLPlusCommand(t *testing.T) {
+	req := RequiredFor([]Change{{Path: "index.html"}, {Kind: ChangeCommand}})
+	claim := Claim{Req: req, Targets: []string{"index.html"}}
+	bag := bagOf(
+		gateEvidence("e1", EvDiff, "index.html", true, ProvObserved),
+		gateEvidence("e2", EvCommand, "shell", true, ProvObserved),
+	)
+	if d := NewGate(Policy{Strict: true}).Evaluate(claim, bag); !d.Allow {
+		t.Fatalf("should allow: %+v", d)
+	}
+	// 少了 diff 就必须拒绝，不能拿 command 顶替。
+	onlyCmd := bagOf(gateEvidence("e3", EvCommand, "shell", true, ProvObserved))
+	if d := NewGate(Policy{Strict: true}).Evaluate(claim, onlyCmd); d.Allow || d.Rule != "coverage" {
+		t.Fatalf("missing diff should deny: %+v", d)
+	}
+}
+
 func TestGatePureTextAnswer(t *testing.T) {
 	g := NewGate(Policy{Strict: false})
 	d := g.Evaluate(Claim{Text: "解释一下 os.Root", Req: Requirement{NoEvidence: true}}, EvidenceBag{})

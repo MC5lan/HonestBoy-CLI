@@ -20,7 +20,9 @@ type Config struct {
 	Theme     string `json:"theme"`
 	MaxTurns  int    `json:"max_turns"`
 	Timeout   string `json:"timeout"`
-	Approval  struct {
+	// ReasoningEffort 是思考强度：low | high | max；空为提供方默认。
+	ReasoningEffort string `json:"reasoning_effort,omitempty"`
+	Approval        struct {
 		Write    string `json:"write"`
 		Exec     string `json:"exec"`
 		Net      string `json:"net"`

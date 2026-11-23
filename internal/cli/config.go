@@ -34,6 +34,7 @@ func RunConfig(opts GlobalOptions, args []string) error {
 		fmt.Fprintf(os.Stdout, "shell          = %s\n", cfg.Shell)
 		fmt.Fprintf(os.Stdout, "theme          = %s\n", cfg.Theme)
 		fmt.Fprintf(os.Stdout, "max_turns      = %d\n", cfg.MaxTurns)
+		fmt.Fprintf(os.Stdout, "reasoning      = %s\n", firstNonEmpty(cfg.ReasoningEffort, "(默认)"))
 		fmt.Fprintf(os.Stdout, "approval.write = %s\n", cfg.Approval.Write)
 		fmt.Fprintf(os.Stdout, "approval.exec  = %s\n", cfg.Approval.Exec)
 		return nil
@@ -84,6 +85,8 @@ func configField(c store.Config, key string) (string, bool) {
 		return c.Theme, true
 	case "max_turns":
 		return strconv.Itoa(c.MaxTurns), true
+	case "reasoning_effort":
+		return c.ReasoningEffort, true
 	case "approval.write":
 		return c.Approval.Write, true
 	case "approval.exec":
@@ -118,6 +121,13 @@ func setConfigField(c *store.Config, key, value string) error {
 			return ErrUsage
 		}
 		c.MaxTurns = n
+	case "reasoning_effort":
+		switch strings.ToLower(value) {
+		case "", "low", "high", "max":
+			c.ReasoningEffort = strings.ToLower(value)
+		default:
+			return ErrUsage
+		}
 	case "approval.write", "approval.exec":
 		if value != "auto" && value != "ask" {
 			return ErrUsage

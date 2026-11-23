@@ -42,8 +42,9 @@ func (c *ChatClient) Stream(ctx context.Context, req Request) (<-chan Chunk, <-c
 type sseDelta struct {
 	Choices []struct {
 		Delta struct {
-			Content   string `json:"content"`
-			ToolCalls []struct {
+			Content          string `json:"content"`
+			ReasoningContent string `json:"reasoning_content"`
+			ToolCalls        []struct {
 				Index    json.RawMessage `json:"index"`
 				ID       string          `json:"id"`
 				Type     string          `json:"type"`
@@ -93,6 +94,9 @@ func (c *ChatClient) stream(ctx context.Context, req Request, out chan<- Chunk) 
 	if len(req.Stop) > 0 {
 		body["stop"] = req.Stop
 	}
+	if req.ReasoningEffort != "" {
+		body["reasoning_effort"] = req.ReasoningEffort
+	}
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return err
@@ -139,8 +143,14 @@ func (c *ChatClient) stream(ctx context.Context, req Request, out chan<- Chunk) 
 			return nil
 		}
 		for _, ch := range d.Choices {
+			if ch.Delta.ReasoningContent != "" {
+				out <- Chunk{Reasoning: SanitizeUTF8(ch.Delta.ReasoningContent)}
+			}
 			if ch.Delta.Content != "" {
 				out <- Chunk{Text: SanitizeUTF8(ch.Delta.Content)}
+			}
+			if ch.FinishReason != nil && *ch.FinishReason == "length" {
+				out <- Chunk{Truncated: true}
 			}
 			for _, tc := range ch.Delta.ToolCalls {
 				idx, perr := toolCallIndex(tc.Index)
@@ -214,6 +224,9 @@ func toWireMessages(msgs []Message) []map[string]any {
 		item := map[string]any{"role": m.Role, "content": m.Content}
 		switch m.Role {
 		case "assistant":
+			if m.Reasoning != "" {
+				item["reasoning_content"] = m.Reasoning
+			}
 			if len(m.Calls) > 0 {
 				calls := make([]map[string]any, 0, len(m.Calls))
 				for _, c := range m.Calls {
