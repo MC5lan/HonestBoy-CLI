@@ -9,4 +9,4 @@
 | D03 | ~~会话文件无锁~~ | 平台 | — | — | 阶段 8 已实现：gofrs/flock 独占写，第二进程只读 | 已关闭 |
 | D04 | 上下文预算用字符估算 token，中文偏差约 ±20% | 精度 | 偶尔提前裁剪 | 长会话 | v1.1 换真实 tokenizer | 已知可接受 |
 | D05 | winget/scoop 清单里的 SHA256 仍是占位符 | 发布 | 包管理器安装会校验失败 | 首次正式发布前 | 发布产物生成后回填真实哈希；CI 增加校验步骤 | 待发布 |
-| D06 | `hb upgrade` 只对本地模拟 release 做过测试 | 验证 | 真实 GitHub 资产命名变化时可能失败 | 首个 release 发布后 | 发布后跑一次真实升级并补集成记录 | 待发布 |
+| D06 | `hb upgrade` 尚未对 GitHub 真实 release 验证 | 验证 | 真实发布资产缺失时只能得到 404 | 首个 release 发布后 | 已用 goreleaser snapshot 产物（真实 zip + checksums）经本地 HTTP 完成一次实际升级并校验版本；GitHub 真实 release 待首个 tag 后补测 | 部分验证 |

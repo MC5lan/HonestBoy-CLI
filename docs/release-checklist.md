@@ -20,6 +20,16 @@ git push origin v0.1.0
 
 ## 2. 构建发布产物
 
+本地演练（不发布）：
+
+```powershell
+goreleaser release --snapshot --clean
+```
+
+已用 snapshot 产物验证过：zip 内二进制名、`checksums.txt` 格式与 `hb upgrade` 的资产匹配逻辑一致。
+
+正式发布：
+
 ```powershell
 $env:GITHUB_TOKEN = "<有 repo 权限的 token>"
 goreleaser release --clean

@@ -11,3 +11,4 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
 4. 高危授权测试最初用 `shutdown` 做样本，批准后会真的关机 → 换成无副作用的 `git reset --hard` / `git push --force`（临时空仓库内必然失败）。
 5. 自我保证措辞测试发现 `done` 被 Gate 拒绝 → 确认是预期的加严行为，修改测试预期而不是放宽 Gate。
 6. 回放样本里 `verify_test` 在空模块上退出码 0，无法制造失败 → 测试前写入一个必失败的 `fail_test.go`。
+7. 用 goreleaser snapshot 产物（真实 zip + checksums）通过本地 HTTP 跑了一次 `hb upgrade`，升级后的 `hb --version` 显示 zip 内版本，确认资产命名与解压逻辑一致。
