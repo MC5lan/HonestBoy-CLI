@@ -25,6 +25,10 @@ func runTUI(resumeID string) error {
 	if err != nil {
 		return fmt.Errorf("%w: %v", cli.ErrEnvironment, err)
 	}
+	contextWindow := cfg.Context.Window
+	if contextWindow <= 0 {
+		contextWindow = 960000
+	}
 	sb, err := tools.Open(wd)
 	if err != nil {
 		return fmt.Errorf("%w: %v", cli.ErrEnvironment, err)
@@ -63,7 +67,7 @@ func runTUI(resumeID string) error {
 			LedgerRecall:    true,
 			PlanFirst:       true,
 			ReasoningEffort: cfg.ReasoningEffort,
-			ContextWindow:   128000,
+			ContextWindow:   contextWindow,
 			Tracer:          core.NewTracer(filepath.Join(store.DefaultPaths().Root, "trace")),
 		})
 		return eng.Run(ctx, prompt)
@@ -101,7 +105,7 @@ func runTUI(resumeID string) error {
 	onboard := cfg.BaseURL == "" || os.Getenv(keyEnv) == ""
 	m := tui.NewModel(tui.Config{
 		Workdir: wd, Model: cfg.Model, Theme: cfg.Theme, Replay: replay,
-		ContextWindow: 128000, Protocol: cfg.Protocol, BaseURL: cfg.BaseURL,
+		ContextWindow: contextWindow, Protocol: cfg.Protocol, BaseURL: cfg.BaseURL,
 		SetModel: setModel, Exec: exec, Onboard: onboard,
 		Run: run, Cancel: func() {
 			if cancel != nil {

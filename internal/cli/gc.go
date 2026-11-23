@@ -137,5 +137,4 @@ func writeExport(w io.Writer, sess *core.Session, redact bool) error {
 }
 
 func jsonMarshal(v any) ([]byte, error) { return json.Marshal(v) }
-
-func redactLine(line string) string { return logging.Redact(line) }
+func redactLine(line string) string     { return logging.Redact(line) }

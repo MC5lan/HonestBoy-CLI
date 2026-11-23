@@ -81,6 +81,8 @@ DeepSeek 思考模式（`deepseek-flash`）默认开启。适配器会解析并�
 - 每轮自动装配：系统提示 → `HB.md`/`AGENTS.md` → 环境（OS/cwd/日期 + `git status --short` 与 `git diff --stat`）→ 任务。
 - 上下文预算为窗口的 70%；超出时旧对话丢弃、旧工具输出截到 200 字符，并发 `notice{info}` 报告裁剪条数；
   最近 2 轮与 system 永远保留。
+- 上下文窗口支持 300k / 600k / 960k 三档，默认 960k：
+  `hb config set context.window 600k`；也接受 `300000` 这样的数字。
 - 每轮开始写文件快照检查点（跳过 `.git`/构建产物与 >2MB 文件）；`hb rewind restore` 可把代码恢复到快照，
   对话历史不受影响（对标 Claude Code `/rewind` 与 Aider `/undo`）。
   检查点排除 AppData/OneDrive/包缓存，最多 4000 文件或 128MB；主目录会自动跳过检查点与仓库地图。

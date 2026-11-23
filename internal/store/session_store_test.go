@@ -98,4 +98,7 @@ func TestConfigRoundTrip(t *testing.T) {
 	if got.APIKeyEnv != "HB_API_KEY" || got.Context.BudgetRatio != 0.7 {
 		t.Fatal("defaults not merged")
 	}
+	if got.Context.Window != 960000 {
+		t.Fatalf("context window = %d, want 960000", got.Context.Window)
+	}
 }

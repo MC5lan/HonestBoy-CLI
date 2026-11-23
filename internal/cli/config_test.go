@@ -21,3 +21,34 @@ func TestConfigReasoningEffort(t *testing.T) {
 		t.Fatal("invalid effort should be rejected")
 	}
 }
+
+func TestConfigContextWindowPresets(t *testing.T) {
+	c := store.DefaultConfig()
+	if c.Context.Window != 960000 {
+		t.Fatalf("default window = %d", c.Context.Window)
+	}
+	for _, tc := range []struct {
+		value string
+		want  int
+	}{
+		{"300k", 300000},
+		{"600K", 600000},
+		{"960k", 960000},
+		{"300000", 300000},
+	} {
+		if err := setConfigField(&c, "context.window", tc.value); err != nil {
+			t.Fatalf("%s: %v", tc.value, err)
+		}
+		if c.Context.Window != tc.want {
+			t.Fatalf("%s = %d, want %d", tc.value, c.Context.Window, tc.want)
+		}
+	}
+	for _, bad := range []string{"600", "0", "abc", "20m"} {
+		if err := setConfigField(&c, "context.window", bad); err == nil {
+			t.Fatalf("%q should be rejected", bad)
+		}
+	}
+	if v, ok := configField(c, "context.window"); !ok || v != "300000" {
+		t.Fatalf("get = %q, %v", v, ok)
+	}
+}

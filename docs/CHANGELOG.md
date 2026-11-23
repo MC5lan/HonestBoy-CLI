@@ -34,6 +34,7 @@
 - `hb approve` 与 `hb run` 的配置对齐（自评、歧义、账本、计划、思考强度、审批）；TUI 传入 `PlanFirst` 与上下文窗口。
 - 检查点与仓库地图：主目录自动跳过；排除 AppData / OneDrive / 包缓存；检查点上限 4000 文件或 128MB，超出截断并提示。
 - 失败重复检测只统计当前回合，历史账本不再阻断新回合。
+- 上下文窗口改为可配置：`context.window` 支持 300k / 600k / 960k，默认 960k；CLI、TUI、approve 统一使用该值。
 - shell 工具结果附带退出码，避免模型把“空输出”误判为命令失败。
 - system prompt 明确写出 diff / command / build / test 证据来源、`request_done` 与 `declare_untested` 参数格式。
 

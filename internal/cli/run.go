@@ -51,6 +51,10 @@ func RunRun(opts GlobalOptions, args []string) error {
 	baseURL := firstNonEmpty(opts.BaseURL, cfg.BaseURL)
 	protocol := firstNonEmpty(opts.Protocol, cfg.Protocol)
 	apiKey := os.Getenv(firstNonEmpty(cfg.APIKeyEnv, "HB_API_KEY"))
+	contextWindow := cfg.Context.Window
+	if contextWindow <= 0 {
+		contextWindow = 960000
+	}
 	if baseURL == "" && apiKey == "" {
 		return fmt.Errorf("%w: 尚未配置模型端点或密钥。先运行 hb init 完成设置，或设置环境变量 %s / 传 --base-url",
 			ErrEnvironment, firstNonEmpty(cfg.APIKeyEnv, "HB_API_KEY"))
@@ -78,6 +82,7 @@ func RunRun(opts GlobalOptions, args []string) error {
 		Registry: registry, Approval: approval, MaxTurns: opts.MaxTurns,
 		PlanMode: opts.Plan, AutoCommit: opts.AutoCommit,
 		ReasoningEffort: cfg.ReasoningEffort,
+		ContextWindow:   contextWindow,
 		SelfAssessment:  true, AmbiguityHalt: true, LedgerRecall: true, PlanFirst: true,
 		Tracer: core.NewTracer(filepath.Join(store.DefaultPaths().Root, "trace")),
 	})

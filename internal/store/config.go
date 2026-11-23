@@ -30,6 +30,9 @@ type Config struct {
 	} `json:"approval"`
 	Ignore  []string `json:"ignore"`
 	Context struct {
+		// Window 是模型上下文窗口（token）；支持 300k / 600k / 960k。
+		// 0 表示使用默认 960k（由 DefaultConfig 填充）。
+		Window      int     `json:"window"`
 		BudgetRatio float64 `json:"budget_ratio"`
 		KeepRecent  int     `json:"keep_recent_turns"`
 		HBMDLimit   int     `json:"hb_md_limit"`
@@ -51,6 +54,7 @@ func DefaultConfig() Config {
 	c.Context.BudgetRatio = 0.7
 	c.Context.KeepRecent = 2
 	c.Context.HBMDLimit = 16384
+	c.Context.Window = 960000
 	c.Tools.ShellTimeoutMS = 120000
 	c.Tools.OutputLimitBytes = 1048576
 	c.Tools.SearchMaxResults = 200

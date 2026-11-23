@@ -56,6 +56,9 @@ func TestMaxOutputTokensBudget(t *testing.T) {
 	if got := mk(16000).cfg.MaxOutputTokens; got != 8000 {
 		t.Fatalf("capped MaxOutputTokens = %d, want 8000", got)
 	}
+	if got := mk(960000).cfg.MaxOutputTokens; got != 65536 {
+		t.Fatalf("960k MaxOutputTokens = %d, want 65536", got)
+	}
 }
 
 // 思考内容必须回传给后续请求（DeepSeek 带 tools 的思考模式要求）。

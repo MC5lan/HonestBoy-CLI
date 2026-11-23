@@ -49,6 +49,10 @@ func RunApprove(opts GlobalOptions, args []string) error {
 	defer sb.Close()
 
 	cfg, _ := store.Load()
+	contextWindow := cfg.Context.Window
+	if contextWindow <= 0 {
+		contextWindow = 960000
+	}
 	approval := engine.ApprovalPolicy{
 		Write: firstNonEmpty(cfg.Approval.Write, "auto"),
 		Exec:  cfg.Approval.Exec,
@@ -68,6 +72,7 @@ func RunApprove(opts GlobalOptions, args []string) error {
 		LedgerRecall:    true,
 		PlanFirst:       true,
 		ReasoningEffort: cfg.ReasoningEffort,
+		ContextWindow:   contextWindow,
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), parseTimeout(opts.Timeout, cfg.Timeout))
 	defer cancel()

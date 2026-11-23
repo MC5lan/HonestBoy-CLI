@@ -35,6 +35,7 @@ func RunConfig(opts GlobalOptions, args []string) error {
 		fmt.Fprintf(os.Stdout, "theme          = %s\n", cfg.Theme)
 		fmt.Fprintf(os.Stdout, "max_turns      = %d\n", cfg.MaxTurns)
 		fmt.Fprintf(os.Stdout, "reasoning      = %s\n", firstNonEmpty(cfg.ReasoningEffort, "(默认)"))
+		fmt.Fprintf(os.Stdout, "context.window = %d (%s)\n", cfg.Context.Window, formatK(cfg.Context.Window))
 		fmt.Fprintf(os.Stdout, "approval.write = %s\n", cfg.Approval.Write)
 		fmt.Fprintf(os.Stdout, "approval.exec  = %s\n", cfg.Approval.Exec)
 		return nil
@@ -87,6 +88,8 @@ func configField(c store.Config, key string) (string, bool) {
 		return strconv.Itoa(c.MaxTurns), true
 	case "reasoning_effort":
 		return c.ReasoningEffort, true
+	case "context.window", "context_window":
+		return strconv.Itoa(c.Context.Window), true
 	case "approval.write":
 		return c.Approval.Write, true
 	case "approval.exec":
@@ -128,6 +131,12 @@ func setConfigField(c *store.Config, key, value string) error {
 		default:
 			return ErrUsage
 		}
+	case "context.window", "context_window":
+		n, ok := parseTokenCount(value)
+		if !ok {
+			return ErrUsage
+		}
+		c.Context.Window = n
 	case "approval.write", "approval.exec":
 		if value != "auto" && value != "ask" {
 			return ErrUsage
@@ -141,4 +150,34 @@ func setConfigField(c *store.Config, key, value string) error {
 		return ErrUsage
 	}
 	return nil
+}
+
+// parseTokenCount 解析 300k / 600k / 960k / 300000 这类窗口设置。
+func parseTokenCount(s string) (int, bool) {
+	s = strings.ToLower(strings.TrimSpace(s))
+	mult := 1
+	switch {
+	case strings.HasSuffix(s, "k"):
+		mult = 1000
+		s = strings.TrimSpace(strings.TrimSuffix(s, "k"))
+	case strings.HasSuffix(s, "m"):
+		mult = 1000000
+		s = strings.TrimSpace(strings.TrimSuffix(s, "m"))
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil || n <= 0 {
+		return 0, false
+	}
+	n *= mult
+	if n < 16000 || n > 10000000 {
+		return 0, false
+	}
+	return n, true
+}
+
+func formatK(n int) string {
+	if n >= 1000 && n%1000 == 0 {
+		return strconv.Itoa(n/1000) + "k"
+	}
+	return strconv.Itoa(n)
 }
