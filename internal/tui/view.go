@@ -100,26 +100,35 @@ func (m *Model) View() string {
 		goalExtra = len(goalArt())
 	}
 	panelExtra := 0
-	if sug := m.slashSuggestions(); len(sug) > 0 {
-		n := len(sug)
-		if n > 6 {
-			n = 6
+	if !m.showHelp {
+		if sug := m.slashSuggestions(); len(sug) > 0 {
+			n := len(sug)
+			if n > 6 {
+				n = 6
+			}
+			panelExtra = n + 1 // + 底部操作提示
 		}
-		panelExtra = n + 1 // + 底部操作提示
 	}
 	reserve := goalExtra + panelExtra
 
 	// 对话区 + 右侧可观测面板（宽屏时分栏，窄屏隐藏面板）。
 	body := m.view.View()
-	if len(m.blocks) == 0 {
-		body = "  " + m.th.DimStyle().Render("输入任务开始，过程会显示在这个框里。")
+	if m.showHelp {
+		width := m.width - 4
+		if width < 40 {
+			width = 40
+		}
+		body = m.helpPage(width)
+	} else if len(m.blocks) == 0 {
+		body = "  " + m.th.DimStyle().Render("输入任务开始，过程会显示在这个框里。") + "\n" +
+			"  " + m.th.DimStyle().Render("/ 命令面板 · ? 快捷键 · Enter 提交")
 	}
 	body = clipLines(body, maxInt(3, m.view.Height-reserve))
 	// banner 与「对话区+面板」必须同宽。lipgloss 的 Width 不含 padding/border（各 2），
 	// 所以 dialogW + panelW + 8 == m.width。
 	panelW := 26
 	dialogW := m.width - 2
-	if !narrowMode(m.width) && m.width >= 76 {
+	if !m.showHelp && !narrowMode(m.width) && m.width >= 76 {
 		dialogW = m.width - panelW - 8
 	}
 	dialogStyle := lipgloss.NewStyle().
@@ -129,7 +138,7 @@ func (m *Model) View() string {
 		Width(dialogW)
 	dialog := dialogStyle.Render(body)
 
-	if !narrowMode(m.width) && m.width >= 76 {
+	if !m.showHelp && !narrowMode(m.width) && m.width >= 76 {
 		// 面板内容必须裁剪到可视高度，否则会撑破布局导致顶部被裁。
 		panelBody := clipLines(m.renderPanel(panelW), maxInt(3, m.view.Height-reserve))
 		panelStyle := lipgloss.NewStyle().
@@ -161,8 +170,10 @@ func (m *Model) View() string {
 	}
 
 	// 命令面板：输入 / 时显示，上下键选择，Tab 补全。
-	if sug := m.slashSuggestions(); len(sug) > 0 {
-		parts = append(parts, m.renderCommandPanel(sug))
+	if !m.showHelp {
+		if sug := m.slashSuggestions(); len(sug) > 0 {
+			parts = append(parts, m.renderCommandPanel(sug))
+		}
 	}
 
 	// 输入区：整块深色背景（Codex 用 rgb(57,57,57)），› 加粗提示符。

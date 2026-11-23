@@ -6,6 +6,7 @@ import (
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/core"
 	"github.com/MC5lan/HonestBoy-CLI/internal/llm"
+	"github.com/MC5lan/HonestBoy-CLI/internal/tools"
 )
 
 func TestReadOnlyCommandWhitelist(t *testing.T) {
@@ -90,5 +91,51 @@ func TestApprovalAllowAll(t *testing.T) {
 	_ = runEngine(t, eng, "跑命令")
 	if asked != 1 {
 		t.Fatalf("AllowAll should ask once, got %d", asked)
+	}
+}
+
+// 文档 F5：不可逆动作单次授权，AllowAll 也不能记住。
+func TestHighRiskNeverRemembered(t *testing.T) {
+	client := &scriptedClient{responses: [][]llm.Chunk{
+		{call("s1", "shell", `{"command":"git reset --hard"}`), call("s2", "shell", `{"command":"git push --force"}`)},
+		{doneCall("d1", "两条高危命令")},
+	}}
+	eng := newTestEngine(t, client)
+	eng.approval.Exec = "auto"
+	asked := 0
+	eng.approvalHandler = func(ctx context.Context, req core.ApprovalRequest) (core.ApprovalDecision, error) {
+		asked++
+		if !req.HighRisk {
+			t.Fatalf("expected high risk request: %+v", req)
+		}
+		return core.ApprovalDecision{Allowed: true, AllowAll: true}, nil
+	}
+	_ = runEngine(t, eng, "运维")
+	if asked != 2 {
+		t.Fatalf("high-risk must ask every time, got %d", asked)
+	}
+}
+
+func TestAuthorityOf(t *testing.T) {
+	sb, err := tools.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sb.Close()
+	reg := tools.NewDefaultRegistry(sb, tools.NewReadGuard(), "cmd")
+	readTool, _ := reg.Get("read_file")
+	writeTool, _ := reg.Get("write_file")
+	shellTool, _ := reg.Get("shell")
+	if got := AuthorityOf(readTool, ""); got != core.AuthReadOnly {
+		t.Fatalf("read tool authority = %v", got)
+	}
+	if got := AuthorityOf(writeTool, ""); got != core.AuthWrite {
+		t.Fatalf("write tool authority = %v", got)
+	}
+	if got := AuthorityOf(shellTool, "rm -rf /"); got != core.AuthIrreversible {
+		t.Fatalf("high-risk authority = %v", got)
+	}
+	if got := AuthorityOf(shellTool, "echo hi"); got != core.AuthWrite {
+		t.Fatalf("exec authority = %v", got)
 	}
 }

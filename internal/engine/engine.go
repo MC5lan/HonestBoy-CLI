@@ -1,8 +1,11 @@
 package engine
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/core"
@@ -31,6 +34,8 @@ type Config struct {
 	AutoCommit      bool // Aider 风格：回合结束自动 git commit 并产出 diff_review 事件
 	SelfAssessment  bool // 自评块（文档 §4.1）：conf=unknown 阻断写操作
 	AmbiguityHalt   bool // 歧义暂停（文档 §4.2）
+	LedgerRecall    bool // 历史失败案例注入（文档 §3.5）
+	PlanFirst       bool // 写操作前必须给测试计划（文档 §4.3）
 	Tracer          *core.Tracer
 }
 
@@ -62,6 +67,7 @@ type Engine struct {
 	approvedAll     map[string]bool
 	didWrite        bool
 	startTime       time.Time
+	ledgerFile      *os.File
 }
 
 func New(cfg Config) *Engine {
@@ -83,11 +89,44 @@ func New(cfg Config) *Engine {
 	if cfg.Approval.Net == "" {
 		cfg.Approval.Net = "ask"
 	}
-	return &Engine{
+	e := &Engine{
 		cfg: cfg, bus: NewEventBus(), gate: core.NewGate(core.Policy{Strict: true}),
 		store: cfg.Store, registry: cfg.Registry, approval: cfg.Approval,
 		approvalHandler: cfg.ApprovalHandler, approvedAll: make(map[string]bool),
 		ledger: &core.Ledger{}, guard: &core.LoopGuard{}, hook: NewEvidenceHook(),
+	}
+	e.openLedger()
+	return e
+}
+
+// openLedger 加载历史失败账本并打开追加文件。
+func (e *Engine) openLedger() {
+	dir := e.store.Paths.Root
+	_ = os.MkdirAll(dir, 0o700)
+	path := filepath.Join(dir, "ledger.jsonl")
+	if f, err := os.Open(path); err == nil {
+		scanner := bufio.NewScanner(f)
+		scanner.Buffer(make([]byte, 64*1024), 1<<20)
+		for scanner.Scan() {
+			var entry core.LedgerEntry
+			if json.Unmarshal(scanner.Bytes(), &entry) == nil {
+				e.ledger.Record(entry)
+			}
+		}
+		f.Close()
+	}
+	if f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600); err == nil {
+		e.ledgerFile = f
+	}
+}
+
+// recordFailure 写入内存账本并追加落盘。
+func (e *Engine) recordFailure(entry core.LedgerEntry) {
+	e.ledger.Record(entry)
+	if e.ledgerFile != nil {
+		if b, err := json.Marshal(entry); err == nil {
+			e.ledgerFile.Write(append(b, '\n'))
+		}
 	}
 }
 
@@ -99,6 +138,11 @@ func (e *Engine) Run(ctx context.Context, prompt string) (<-chan core.Event, <-c
 		defer close(events)
 		defer close(errs)
 		defer recoverCrash(e)
+		defer func() {
+			if e.ledgerFile != nil {
+				_ = e.ledgerFile.Close()
+			}
+		}()
 		e.out = events
 		e.startTime = time.Now().UTC()
 

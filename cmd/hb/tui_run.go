@@ -59,6 +59,8 @@ func runTUI(resumeID string) error {
 			ApprovalHandler: approvalHandler,
 			MaxTurns:        cfg.MaxTurns,
 			SelfAssessment:  true,
+			AmbiguityHalt:   true,
+			LedgerRecall:    true,
 			Tracer:          core.NewTracer(filepath.Join(store.DefaultPaths().Root, "trace")),
 		})
 		return eng.Run(ctx, prompt)
@@ -77,11 +79,28 @@ func runTUI(resumeID string) error {
 		cfg.Model = name
 		return store.Save(cfg)
 	}
+	exec := func(cmd string, args []string) (string, error) {
+		switch cmd {
+		case "/verify":
+			return cli.VerifyReport()
+		case "/stats":
+			return cli.StatsReport()
+		case "/sessions":
+			return cli.SessionsReport(10)
+		default:
+			return "", nil
+		}
+	}
+	keyEnv := cfg.APIKeyEnv
+	if keyEnv == "" {
+		keyEnv = "HB_API_KEY"
+	}
+	onboard := cfg.BaseURL == "" || os.Getenv(keyEnv) == ""
 	m := tui.NewModel(tui.Config{
 		Workdir: wd, Model: cfg.Model, Theme: cfg.Theme, Replay: replay,
 		ContextWindow: 128000, Protocol: cfg.Protocol, BaseURL: cfg.BaseURL,
-		SetModel: setModel,
-		Run:      run, Cancel: func() {
+		SetModel: setModel, Exec: exec, Onboard: onboard,
+		Run: run, Cancel: func() {
 			if cancel != nil {
 				cancel()
 			}

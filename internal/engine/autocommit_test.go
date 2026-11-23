@@ -22,11 +22,17 @@ func newTestEngineAt(t *testing.T, dir string, client llm.Client) *Engine {
 	// 会话数据放在工作区之外，避免被 git 当成用户改动提交。
 	root := t.TempDir()
 	paths := store.Paths{Root: root, Sessions: filepath.Join(root, "sessions"), Logs: filepath.Join(root, "logs")}
-	return New(Config{
+	eng := New(Config{
 		Workdir: dir, Model: "test", Client: client,
 		Registry: tools.NewDefaultRegistry(sb, tools.NewReadGuard(), "cmd"),
 		Store:    store.NewSessionStore(paths), MaxTurns: 10,
 	})
+	t.Cleanup(func() {
+		if eng.ledgerFile != nil {
+			eng.ledgerFile.Close()
+		}
+	})
+	return eng
 }
 
 func initGitWorkdir(t *testing.T) string {

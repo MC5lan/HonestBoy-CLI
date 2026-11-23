@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -39,6 +40,10 @@ type Config struct {
 	Protocol      string             // 当前协议（/config 显示）
 	BaseURL       string             // 当前端点（/config 显示）
 	SetModel      func(string) error // 切换模型并保存配置；nil 时仅本会话生效
+	// Exec 执行需要访问 store/engine 的命令（verify/stats/sessions），
+	// 由 cmd 层注入，避免 tui 依赖 store。
+	Exec    func(cmd string, args []string) (string, error)
+	Onboard bool // 首次使用：显示设置引导
 }
 
 type Model struct {
@@ -76,6 +81,7 @@ type Model struct {
 	obsDeny      int
 	obsRule      string
 	obsReason    string
+	showHelp     bool
 }
 
 func NewModel(cfg Config) *Model {
@@ -98,6 +104,9 @@ func NewModel(cfg Config) *Model {
 	}
 	if n := len(cfg.Replay); n > 0 && cfg.Replay[n-1].Type == core.EvtTurnStart {
 		m.hint = "上次会话中断，可继续输入或 /clear 清空"
+	}
+	if cfg.Onboard {
+		m.hint = "首次使用：hb init 配置端点与密钥 · / 看命令 · ? 看快捷键"
 	}
 	return m
 }
@@ -169,11 +178,34 @@ func (m *Model) runSlash(name, line string) tea.Cmd {
 		m.blocks = nil
 		m.hint = "已清空当前会话显示"
 	case "/help":
-		m.hint = "Enter 提交 · Ctrl+C 中断(两次退出) · Ctrl+L 清屏 · Tab 补全命令 · 输入 / 看命令面板"
+		m.showHelp = true
+		m.hint = ""
 	case "/setup":
 		m.hint = "配置向导：退出 TUI 后运行 hb init"
-	case "/verify", "/stats", "/sessions", "/context", "/compact":
-		m.hint = name + " 由命令行实现：退出 TUI 后运行 hb " + strings.TrimPrefix(name, "/")
+	case "/context":
+		used := m.tokensIn + m.tokensOut
+		window := m.cfg.ContextWindow
+		if window <= 0 {
+			window = 128000
+		}
+		m.hint = fmt.Sprintf("上下文 %d / %d tokens（剩余 %d%%）", used, window, m.contextPercent())
+	case "/compact":
+		m.hint = "上下文会在下一回合自动按预算压缩（旧工具输出截断、旧对话丢弃）"
+	case "/verify", "/stats", "/sessions":
+		if m.cfg.Exec == nil {
+			m.hint = "该命令需要宿主注入执行器"
+			return nil
+		}
+		out, err := m.cfg.Exec(name, args)
+		if err != nil {
+			m.hint = "执行失败: " + err.Error()
+			return nil
+		}
+		m.blocks = append(m.blocks, block{
+			kind: blkNotice, content: out, dirty: true,
+			meta: map[string]string{"level": "info"},
+		})
+		m.hint = name + " 已执行"
 	default:
 		m.hint = "未知命令 " + name + "；相近: " + strings.Join(suggestCommands(name), ", ")
 	}

@@ -61,11 +61,17 @@ func newTestEngine(t *testing.T, client llm.Client) *Engine {
 	}
 	t.Cleanup(func() { sb.Close() })
 	paths := store.Paths{Root: dir, Sessions: filepath.Join(dir, "sessions"), Logs: filepath.Join(dir, "logs")}
-	return New(Config{
+	eng := New(Config{
 		Workdir: dir, Model: "test", Client: client,
 		Registry: tools.NewDefaultRegistry(sb, tools.NewReadGuard(), "cmd"),
 		Store:    store.NewSessionStore(paths), MaxTurns: 10,
 	})
+	t.Cleanup(func() {
+		if eng.ledgerFile != nil {
+			eng.ledgerFile.Close()
+		}
+	})
+	return eng
 }
 
 type runResult struct {

@@ -3,6 +3,7 @@
 | 命令 | 说明 | TTY 依赖 |
 |---|---|---|
 | `hb` | 无参数打印帮助（有 TTY 时启动 TUI） | 条件 |
+| `hb init` | 首次设置向导（工作区 / 协议 / 端点 / 密钥） | 否 |
 | `hb run <prompt>` | 单次执行 | 否 |
 | `hb chat` | 显式交互（Bubble Tea TUI） | 是 |
 | `hb`（无参数） | 有 TTY 时启动 TUI，无 TTY 打印帮助 | 条件 |
@@ -14,10 +15,15 @@
 | `hb config` | 配置查看/设置 | 否 |
 | `hb doctor` | 环境自检 | 否 |
 | `hb explain <code>` | 查询错误码 | 否 |
+| `hb gc [--yes]` | 清理超过 90 天的会话与超过 14 天的日志；默认预演 | 否 |
+| `hb export <id> [--redact]` | 导出会话 jsonl；`--redact` 用统一脱敏规则 | 否 |
+| `hb upgrade [--check]` | 检查并安装最新 release（SHA256 校验，`--check` 只检查） | 否 |
 | `hb undo` | 撤销最近一次自动提交（保留文件改动） | 否 |
 | `hb diff` | 查看当前工作区 diff | 否 |
+| `hb approve <id>` | 批准计划并执行（先 `hb run --plan`） | 否 |
 | `hb rewind list` | 列出检查点（默认最近会话） | 否 |
 | `hb rewind restore <id>` | 恢复代码到检查点（对话历史保留） | 否 |
+| `hb help` | 打印帮助 | 否 |
 
 全局 flag：`--model` `--protocol` `--base-url` `--cwd` `--json` `--quiet`
 `--yes` `--plan` `--auto-commit` `--timeout` `--max-turns` `--no-color` `--debug` `--version` `--help`
@@ -27,6 +33,33 @@
 
 `--plan` 进入计划模式：只暴露只读工具，模型输出执行计划后回合以 `halt` 暂停并把计划写入 Receipt；
 用 `hb approve <session-id>` 批准并按计划执行。
+
+## TUI 内命令
+
+| 命令 | 行为 |
+|---|---|
+| `/model <name>` | 切换模型并写回配置（失败时保留原模型） |
+| `/config` `/path` | 显示配置摘要与完整仓库路径 |
+| `/verify` | 内联校验所有会话证据链 |
+| `/stats` | 内联显示终态分布与 FCR |
+| `/sessions` | 最近 10 个会话 |
+| `/context` | 当前 token 用量与剩余百分比 |
+| `/compact` | 说明自动压缩策略（下一回合生效） |
+
+`/verify` `/stats` `/sessions` 通过注入的 `Exec` 回调访问 store，TUI 包本身不依赖 store/engine。
+
+## TUI 快捷键
+
+| 快捷键 | 行为 |
+|---|---|
+| `Enter` | 提交任务或执行命令 |
+| `Ctrl+C` | 中断当前回合（空闲时退出） |
+| `Ctrl+L` | 清空对话显示 |
+| `Esc` | 忙碌时中断；空闲时关闭提示 |
+| `↑ / ↓` | 翻历史输入 / 在命令面板内选择 |
+| `Tab` | 补全斜杠命令 |
+| `?` | 打开或关闭快捷键帮助 |
+| `/` | 打开命令面板 |
 
 ## 模型协议
 

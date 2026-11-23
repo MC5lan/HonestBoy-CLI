@@ -49,6 +49,21 @@ TUI 按 Codex 的布局范式重构（研究来源 `tuicommander.com` 的 Codex 
 | §3.4.2 权限分级 | `auth.go` | `Authorize`；不可逆单次授权 |
 | §3.6 轨迹与 UCR | `trace.go` | `ClaimRecord.grounded`；`hb stats` 显示 UCR/FCR |
 
+### 机制接线（engine）
+
+以上谓词不只在 core 里有实现，已接入主循环：
+
+| 机制 | 接线点 | 行为 |
+|---|---|---|
+| 歧义暂停 | `loop.go` 回合开始 | A1 悬空指代命中 → `TermHalt`，不执行任何工具，写 Receipt |
+| 形态观测 | `loop.go` 每步文本 | `core.Analyze` 检出自保证/投降 → `notice{warn}`；自我保证仍触发 Gate 加严（T410） |
+| 测试计划 | `loop.go` 解析 + 回合末 `Finalize` | `[TEST PLAN]` 被记录；`passed` 缺可接地证据时告警 |
+| 权限分级 | `approval.go` + `loop.go` | `AuthorityOf` 映射风险；`core.Authorize` 判定；`AuthIrreversible` 永不记忆授权 |
+| 失败账本 | `engine.go` + `loop.go` | 工具失败追加 `%LOCALAPPDATA%\HB\ledger.jsonl`；下轮按标签/路径检索 Top-3（阈值 0.35）注入上下文，并标明“历史、非本轮观测” |
+
+开关位于 `engine.Config`：`AmbiguityHalt` / `SelfAssessment` / `PlanFirst` / `LedgerRecall`。
+CLI `hb run` 与 TUI 都默认开启这四项。
+
 **F1 适配**：原 system prompt 含「你是诚实的…」「诚实规则（不可违反）」「弃权比假装完成更受欢迎」，
 按文档 F1（禁止道德劝说）改写为**结构性规则陈述**——只描述系统如何运转，不要求模型“要诚实”。
 

@@ -48,6 +48,20 @@ func IsReadOnlyCommand(command string) bool {
 // IsHighRisk 委托给 core，供 CLI 与 TUI 共用同一判据。
 func IsHighRisk(command string) bool { return core.IsHighRiskCommand(command) }
 
+// AuthorityOf 把工具风险映射为权限分级（文档 §3.4.2）。
+// 高危命令一律 AuthIrreversible：每次都要新的显式授权。
+func AuthorityOf(t tools.Tool, command string) core.Authority {
+	if core.IsHighRiskCommand(command) {
+		return core.AuthIrreversible
+	}
+	switch t.Risk() {
+	case tools.RiskWrite, tools.RiskExec, tools.RiskNet:
+		return core.AuthWrite
+	default:
+		return core.AuthReadOnly
+	}
+}
+
 // 审批类型定义在 core，供 engine 与 tui 共用而不产生反向依赖。
 type ApprovalRequest = core.ApprovalRequest
 type ApprovalDecision = core.ApprovalDecision

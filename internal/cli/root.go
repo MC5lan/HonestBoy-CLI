@@ -158,6 +158,12 @@ func Execute(args []string) error {
 		return RunApprove(opts, tail)
 	case "rewind":
 		return RunRewind(opts, tail)
+	case "gc":
+		return RunGC(opts, tail)
+	case "upgrade":
+		return RunUpgrade(opts, tail)
+	case "export":
+		return RunExport(opts, tail)
 	case "explain":
 		if len(tail) < 1 {
 			return ErrUsage

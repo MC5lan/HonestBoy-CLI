@@ -77,7 +77,7 @@ func RunRun(opts GlobalOptions, args []string) error {
 		Protocol: protocol, BaseURL: baseURL, APIKey: apiKey,
 		Registry: registry, Approval: approval, MaxTurns: opts.MaxTurns,
 		PlanMode: opts.Plan, AutoCommit: opts.AutoCommit,
-		SelfAssessment: true, AmbiguityHalt: true,
+		SelfAssessment: true, AmbiguityHalt: true, LedgerRecall: true, PlanFirst: true,
 		Tracer: core.NewTracer(filepath.Join(store.DefaultPaths().Root, "trace")),
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), parseTimeout(opts.Timeout, cfg.Timeout))

@@ -23,7 +23,37 @@ func (e *Engine) runTurn(ctx context.Context, input string) (core.Terminal, erro
 	if err := turn.Transition(core.StThinking); err != nil {
 		return core.TermFailed, err
 	}
+	var plan []core.PlanItem // 测试计划（文档 §4.3）
+	var changes []core.Change
+	toolCalls := 0
+	remediation := 0
+	abstainRetries := 0
+	terminal := core.Terminal("")
+
 	e.emit(core.EvtTurnStart, core.TurnStartData{Input: input, Model: e.cfg.Model})
+
+	// 回合结束时校验测试计划三态（passed 必须有可接地的证据）。
+	defer func() {
+		if !e.cfg.PlanFirst || len(plan) == 0 {
+			return
+		}
+		if err := core.Finalize(plan); err != nil {
+			e.emit(core.EvtNotice, core.NoticeData{Level: "warn", Text: "测试计划校验失败：" + err.Error()})
+		}
+	}()
+
+	// 歧义暂停（文档 §4.2）：悬空指代一律 Warn，明确要求 Halt 时直接停。
+	if e.cfg.AmbiguityHalt && core.HasDanglingReference(input) {
+		reason := "输入包含指代（如“那个文件”），无法确定唯一目标"
+		e.emit(core.EvtNotice, core.NoticeData{Level: "warn", Text: reason + "，请说明具体文件或路径"})
+		e.writeReceipt(core.TermHalt, input)
+		_ = turn.Transition(core.StClosed)
+		if e.cfg.Tracer != nil {
+			e.cfg.Tracer.RecordHalt(reason)
+		}
+		return core.TermHalt, nil
+	}
+
 	if cp, cerr := CreateCheckpoint(e.cfg.Workdir, filepath.Join(e.store.Paths.Sessions, s.ID), turn.ID, input); cerr == nil {
 		e.emit(core.EvtNotice, core.NoticeData{Level: "info", Text: "检查点已创建 " + cp.ID})
 	}
@@ -41,17 +71,19 @@ func (e *Engine) runTurn(ctx context.Context, input string) (core.Terminal, erro
 	if e.cfg.SelfAssessment {
 		sys = sys + "\n" + core.SelfPromptFragment
 	}
+	// 历史失败案例注入（文档 §3.5.4）：Top-3、阈值 0.35、标明来源是历史。
+	if e.cfg.LedgerRecall {
+		hits := e.ledger.Search(core.Query{Tags: extractTags(input), Files: changesPaths(input)}, 3, 0.35)
+		if ctxText := core.RenderLedgerContext(hits); ctxText != "" {
+			sys = sys + "\n" + ctxText
+			e.emit(core.EvtNotice, core.NoticeData{Level: "info", Text: fmt.Sprintf("注入了 %d 条历史失败案例", len(hits))})
+		}
+	}
 	messages := []llm.Message{
 		{Role: "system", Content: sys},
 		{Role: "user", Content: input},
 	}
 	budget := Budget{Ratio: 0.7, KeepRecent: 2, WindowSize: e.cfg.ContextWindow}
-	var changes []core.Change
-	toolCalls := 0
-	remediation := 0
-	abstainRetries := 0
-	terminal := core.Terminal("")
-
 steps:
 	for step := 0; step < e.cfg.MaxTurns; step++ {
 		if err := ctx.Err(); err != nil {
@@ -115,6 +147,24 @@ steps:
 				TokensIn: int64(e.usage.In), TokensOut: int64(e.usage.Out),
 				CostMicros: e.usage.CostMicros,
 			})
+		}
+
+		// 形态观测（文档 §5）：确定性规则检测自我保证/投降表述，只警告不改判据。
+		if text.Len() > 0 {
+			rep := core.Analyze(text.String(), "normal")
+			if len(rep.Warrants) > 0 {
+				e.emit(core.EvtNotice, core.NoticeData{Level: "warn", Text: "检测到自我保证表述：" + rep.Warrants[0]})
+			}
+			if len(rep.Deference) > 0 {
+				e.emit(core.EvtNotice, core.NoticeData{Level: "warn", Text: "检测到投降表述：" + rep.Deference[0]})
+			}
+		}
+		// 测试计划（文档 §4.3）：解析后供回合末三态校验。
+		if e.cfg.PlanFirst {
+			if items := core.ParseTestPlan(text.String()); len(items) > 0 {
+				plan = items
+				e.emit(core.EvtNotice, core.NoticeData{Level: "info", Text: fmt.Sprintf("记录测试计划 %d 条", len(items))})
+			}
 		}
 
 		// 自评块：解析并让它影响控制流（文档 §4.1.3）。
@@ -290,6 +340,14 @@ steps:
 					} else {
 						decision = ApprovalDecision{Reason: "非交互模式：需要批准但未装配审批处理器"}
 					}
+					// 授权判定统一走 core.Authorize（文档 F5）：不可逆动作只认本次授权。
+					auth := AuthorityOf(tool, req.Command)
+					if !core.Authorize(auth, map[core.Authority]bool{auth: decision.Allowed}) {
+						decision.Allowed = false
+						if decision.Reason == "" {
+							decision.Reason = "未获得该权限级别的授权"
+						}
+					}
 					if !decision.Allowed {
 						reason := decision.Reason
 						if reason == "" {
@@ -301,8 +359,14 @@ steps:
 						toolResults = append(toolResults, toolResultMsg(call.ID, result))
 						continue
 					}
-					if decision.AllowAll && !req.HighRisk {
-						e.approvedAll[call.Name] = true
+					if decision.AllowAll {
+						if auth == core.AuthIrreversible {
+							e.emit(core.EvtNotice, core.NoticeData{
+								Level: "warn", Text: "不可逆动作不记忆授权：下次仍需单独批准",
+							})
+						} else {
+							e.approvedAll[call.Name] = true
+						}
 					}
 				}
 				e.emit(core.EvtToolStart, core.ToolStartData{CallID: call.ID})
@@ -321,8 +385,21 @@ steps:
 					Output:     truncateRunes(r.Output, 2000), Truncated: len(r.Output) > 2000,
 				})
 				if !r.OK {
-					e.ledger.Record(core.LedgerEntry{
-						TurnID: turn.ID, What: call.Name, Why: truncateRunes(r.Output, 200),
+					target := argString(call.Args, "path")
+					if target == "" {
+						target = argString(call.Args, "target")
+					}
+					e.recordFailure(core.LedgerEntry{
+						TurnID: turn.ID, What: call.Name,
+						Why:  truncateRunes(r.Output, 200),
+						Kind: call.Name,
+						Tags: extractTags(input),
+						Files: func() []string {
+							if target != "" {
+								return []string{target}
+							}
+							return nil
+						}(),
 					})
 				}
 				target := argString(call.Args, "path")
@@ -363,6 +440,35 @@ steps:
 		terminal = core.TermHalt
 	}
 	return terminal, nil
+}
+
+// extractTags 从用户输入提取检索标签（简单分词，限定小写单词）。
+func extractTags(input string) []string {
+	fields := strings.FieldsFunc(input, func(r rune) bool {
+		return !(r >= 'a' && r <= 'z') && !(r >= 'A' && r <= 'Z') && !(r >= '0' && r <= '9')
+	})
+	var out []string
+	seen := map[string]bool{}
+	for _, f := range fields {
+		f = strings.ToLower(f)
+		if len(f) < 3 || seen[f] {
+			continue
+		}
+		seen[f] = true
+		out = append(out, f)
+	}
+	return out
+}
+
+// changesPaths 从输入里提取可能的文件路径（含 / 或 . 的词）。
+func changesPaths(input string) []string {
+	var out []string
+	for _, f := range strings.Fields(input) {
+		if strings.ContainsAny(f, `/\`) || strings.Contains(f, ".go") || strings.Contains(f, ".md") {
+			out = append(out, strings.Trim(f, `,.;:()[]{}"'`))
+		}
+	}
+	return out
 }
 
 // hasWriteCall 判断本步是否包含写操作。

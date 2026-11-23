@@ -5,9 +5,8 @@
 同一个模型，换一个 harness，它虚报完成的概率会变。
 Honest Boy 的全部工程，就是为了让“没验证就说完成”这件事在结构上发不出去。
 
-> 当前状态：**阶段 1–8 已实现**（core 状态机与 Gate、三套模型协议、受沙箱约束的工具集、
-> 非交互 CLI、会话落盘与三态探针、Bubble Tea TUI 与富内容渲染、审批往返与会话恢复）。
-> 手册其余阶段按 `HonestBoy-CLI-全量开发手册-v3.md` 继续推进。
+> 当前状态：核心诚实机制、三套模型协议、受沙箱约束的工具集、非交互 CLI、Bubble Tea TUI、
+> 会话/证据链、检查点与发布脚手架均已实现；`go test ./...`、二进制级 e2e、依赖方向检查全绿。
 
 ## 已可用的能力
 
@@ -17,8 +16,11 @@ Honest Boy 的全部工程，就是为了让“没验证就说完成”这件事
 - `hb sessions`：会话列表、`show <id>`、`rm <id>`
 - `hb probe --json`：三态探针（正常 / 诱导 / 施压），可进 CI 回归
 - `hb doctor` / `hb config`：环境自检与配置管理
+- `hb gc` / `hb export --redact` / `hb upgrade --check`：数据清理、脱敏导出、自更新
 - 模型协议：`--protocol openai-chat|anthropic|responses`，或用 `--base-url` 自动推断
 - `hb`（有 TTY）/ `hb chat`：Bubble Tea 交互界面（流式渲染、视口滚动、斜杠命令、快捷键）
+- TUI 内 `/verify` `/stats` `/sessions` `/context` `/compact` 均可用，不用退出界面
+- 诚实机制已接入主循环：歧义暂停、自评阻断、测试计划三态、不可逆单次授权、跨回合失败账本检索
 - 长任务能力：自动上下文压缩 + 仓库符号地图 + 每轮 git 状态注入 + 检查点（`hb rewind`）+ `apply_patch` 补丁编辑
 - 计划模式：`hb run --plan "任务"` 先只读探索并输出计划，`hb approve <id>` 批准后才执行
 - git 工作流：`hb run --auto-commit "..."` 自动提交并产出 diff 审阅，`hb undo` 撤销、`hb diff` 查看

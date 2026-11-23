@@ -3,7 +3,7 @@ LDFLAGS := -s -w \
   -X github.com/MC5lan/HonestBoy-CLI/internal/cli.Commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo none) \
   -X github.com/MC5lan/HonestBoy-CLI/internal/cli.Date=$(shell powershell -NoProfile -Command "(Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')")
 
-.PHONY: build build-all test bench lint verify-deps clean release-check
+.PHONY: build build-all test bench lint verify-deps clean release-check e2e govuln
 
 build:
 	go build -trimpath -ldflags "$(LDFLAGS)" -o bin/hb.exe ./cmd/hb
@@ -24,6 +24,13 @@ release-check:
 	go vet ./...
 	go test ./... -count=1
 	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/checkdeps.ps1
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/e2e.ps1
+
+e2e:
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/e2e.ps1
+
+govuln:
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/govuln.ps1
 
 lint:
 	golangci-lint run ./...

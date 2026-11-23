@@ -27,6 +27,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// 帮助页是模态层：先处理关闭键，其余按键不穿透到输入框。
+		if m.showHelp {
+			switch msg.String() {
+			case "?", "esc", "enter", "q":
+				m.showHelp = false
+				m.hint = ""
+				m.refreshView()
+			}
+			return m, nil
+		}
 		if m.state == stApproving && m.pending != nil {
 			if m.pending.Req.HighRisk {
 				switch msg.String() {
@@ -61,6 +71,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, acmd
 		}
 		switch msg.String() {
+		case "?":
+			if strings.TrimSpace(m.input.Value()) == "" {
+				m.showHelp = true
+				return m, nil
+			}
 		case "ctrl+c":
 			return m, m.cancel()
 		case "ctrl+l":

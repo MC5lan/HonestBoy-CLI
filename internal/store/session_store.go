@@ -241,6 +241,44 @@ func (s *SessionStore) List() ([]SessionMeta, error) {
 	return out, nil
 }
 
+// Delete 删除一个会话文件及其检查点目录。
+func (s *SessionStore) Delete(id string) error {
+	_ = os.RemoveAll(filepath.Join(s.Paths.Sessions, id))
+	return os.Remove(s.path(id))
+}
+
+// DirSize 返回会话目录占用字节数。
+func (s *SessionStore) DirSize() (int64, error) {
+	var total int64
+	entries, err := os.ReadDir(s.Paths.Sessions)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	for _, e := range entries {
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		if e.IsDir() {
+			_ = filepath.WalkDir(filepath.Join(s.Paths.Sessions, e.Name()), func(path string, d os.DirEntry, err error) error {
+				if err != nil || d.IsDir() {
+					return nil
+				}
+				if fi, err := d.Info(); err == nil {
+					total += fi.Size()
+				}
+				return nil
+			})
+			continue
+		}
+		total += info.Size()
+	}
+	return total, nil
+}
+
 // AllReceipts 汇总所有会话的 Receipt，供 verify 与 stats 使用。
 func (s *SessionStore) AllReceipts() ([]core.Receipt, error) {
 	entries, err := os.ReadDir(s.Paths.Sessions)
