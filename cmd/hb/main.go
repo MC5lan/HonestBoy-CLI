@@ -10,6 +10,7 @@ import (
 )
 
 func main() {
+	cleanupOldBinary()
 	if err := cli.Execute(os.Args[1:]); err != nil {
 		if errors.Is(err, cli.ErrInteractive) {
 			var ir *cli.InteractiveRequest
@@ -22,4 +23,13 @@ func main() {
 		fmt.Fprintln(os.Stderr, "hb:", cli.FriendlyError(err))
 		os.Exit(cli.ExitCodeOf(err))
 	}
+}
+
+// cleanupOldBinary 删除自更新留下的 <exe>.old；旧进程还在运行时删除会失败，忽略即可。
+func cleanupOldBinary() {
+	exe, err := os.Executable()
+	if err != nil {
+		return
+	}
+	_ = os.Remove(exe + ".old")
 }
