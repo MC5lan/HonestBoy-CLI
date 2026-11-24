@@ -99,4 +99,5 @@ Windows 下旧文件先改名为 `hb.exe.old`，下次启动自动清理。
 - `v0.1.1` 已发布：https://github.com/MC5lan/HonestBoy-CLI/releases/tag/v0.1.1
 - 线上三个 zip + `checksums.txt` 已核对；winget/scoop 已更新到 0.1.1 并回填真实哈希。
 - 用修复后的二进制对真实 GitHub `v0.1.1` 完成下载 → SHA256 → 替换 → 版本确认。
-- 仍未完成：本机无 winget/scoop，安装/卸载未实测；Linux/arm64 未真机运行。
+- winget `0.1.0` 与 `0.1.1` 清单已通过 `winget validate`（ManifestVersion 1.6.0，Homepage 改为 PackageUrl）。
+- 仍未完成：winget 本地清单安装被本机管理员策略 `LocalManifestFiles` 拦截；scoop 未安装；Linux/arm64 未真机运行。

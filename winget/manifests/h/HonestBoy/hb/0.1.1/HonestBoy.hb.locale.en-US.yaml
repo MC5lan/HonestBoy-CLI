@@ -6,7 +6,7 @@ PackageName: Honest Boy CLI
 ShortDescription: Local AI coding agent CLI with a completion gate grounded in verifier evidence
 License: Apache-2.0
 LicenseUrl: https://github.com/MC5lan/HonestBoy-CLI/blob/main/LICENSE
-Homepage: https://github.com/MC5lan/HonestBoy-CLI
+PackageUrl: https://github.com/MC5lan/HonestBoy-CLI
 Tags: [cli, ai, coding-agent, honesty, go]
 ManifestType: defaultLocale
-ManifestVersion: 1.6
+ManifestVersion: 1.6.0

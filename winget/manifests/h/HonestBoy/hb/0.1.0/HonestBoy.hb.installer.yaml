@@ -13,4 +13,4 @@ Installers:
     InstallerUrl: https://github.com/MC5lan/HonestBoy-CLI/releases/download/v0.1.0/hb_0.1.0_windows_arm64.zip
     InstallerSha256: 324231c17212daf71f8a0377e105b67413dc4af0d5fe39b58a7636419c3b25e3
 ManifestType: installer
-ManifestVersion: 1.6
+ManifestVersion: 1.6.0
