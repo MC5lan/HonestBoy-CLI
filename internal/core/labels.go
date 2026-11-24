@@ -27,8 +27,10 @@ func ToolAction(name, args string) string {
 	switch name {
 	case "shell":
 		return "执行命令 " + firstArg(args, "command")
-	case "write_file", "apply_patch":
+	case "write_file":
 		return "新增/修改文件 " + firstArg(args, "path")
+	case "apply_patch":
+		return "应用补丁"
 	case "edit_file":
 		return "编辑文件 " + firstArg(args, "path")
 	case "read_file":

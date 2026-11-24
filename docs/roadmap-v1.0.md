@@ -114,7 +114,7 @@
 
 依赖：M1–M4 功能稳定后集中收口，但覆盖率/回归应持续跑。目标：达到 §6.3 数字。
 
-- [ ] `internal/core` 覆盖率从 82.9% 提到 ≥85% (M)
+- [x] `internal/core` 覆盖率从 82.9% 提到 95.3% (M)
 - [ ] `sandbox` / `guard` 分支 100%；12 个逃逸用例三平台通过 (L)
 - [ ] Gate 反例 ≥20 个，表驱动 (M)
 - [ ] `testdata/sessions` 至少 10 个文件化回放样本，覆盖 done/untested/denied/halt (M)
