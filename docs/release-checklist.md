@@ -87,8 +87,8 @@ Windows 下旧文件先改名为 `hb.exe.old`，下次启动自动清理。
 
 尚未完成，不能据此直接宣布正式发布：
 
-- `v0.1.0` tag 仅存在本地，尚未 push。
-- 未创建 GitHub Release；`GITHUB_TOKEN` 未配置。
-- winget/scoop 的 SHA256 仍为占位符，必须在真实 release 产物生成后回填。
-- `hb upgrade` 尚未对真实 GitHub release 验证（D06）。
-- 本机未跑 `-race`（无 gcc）；由 CI 覆盖。
+- ~~`v0.1.0` tag 仅存在本地，尚未 push。~~ 已 push。
+- ~~未创建 GitHub Release。~~ 已发布：https://github.com/MC5lan/HonestBoy-CLI/releases/tag/v0.1.0
+- ~~winget/scoop 的 SHA256 仍为占位符。~~ 已按真实 checksums 回填；本机无 winget/scoop 命令，安装未实测。
+- `hb upgrade --check` 对真实 release 通过；完整 `upgrade` 因本机到 GitHub 资产链路约 19KB/s、2 分钟超时而失败（D13）。
+- 本机未跑 `-race`（无 gcc）；CI run `45355568756` 已覆盖并通过。

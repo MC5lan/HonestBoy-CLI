@@ -23,7 +23,10 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
 21. v0.1.0 发布演练：CI 三个 job 全绿（含 Linux `-race`）；ConPTY 真实 TUI 的启动/帮助/命令面板/`/config`/Ctrl+C 通过；
     真实模型在临时 Go 仓库完成“修 Add → test/build/vet → Gate `done`”，10.8 秒、退出码 0；
     `goreleaser --skip=publish` 产物 SHA256 全部匹配，本地 `hb upgrade` 成功升级到 `0.1.0`。
-    尚未 push tag / 创建 GitHub Release；winget/scoop 哈希仍待真实 release 产物回填。
+22. v0.1.0 正式发布：tag 与 GitHub Release 已推送，3 个 zip + `checksums.txt` 上传；
+    线上 checksums 与本地一致（windows/amd64 `015b4968…`，windows/arm64 `324231c1…`，linux/amd64 `c04fc826…`）；
+    winget/scoop 哈希已回填。真实 `hb upgrade --check` 通过；但本机到 GitHub 资产链路约 19KB/s，
+    6.8MB 下载超过 2 分钟超时，完整 `upgrade` 未能完成——已记入 D13，待改超时/重试后在正常网络复测。
 
 ## 2026-11-23
 
