@@ -76,6 +76,7 @@ func RunRun(opts GlobalOptions, args []string) error {
 		ReasoningEffort: cfg.ReasoningEffort,
 		ContextWindow:   contextWindow,
 		Rigor:           cfg.Rigor,
+		MaxOutputTokens: cfg.MaxOutputTokens,
 		SelfAssessment:  true, AmbiguityHalt: true, LedgerRecall: true, PlanFirst: true,
 		Tracer: core.NewTracer(filepath.Join(store.DefaultPaths().Root, "trace")),
 	})

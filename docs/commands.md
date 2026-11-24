@@ -83,6 +83,8 @@ DeepSeek 思考模式（`deepseek-flash`）默认开启。适配器会解析并�
   最近 2 轮与 system 永远保留。
 - 上下文窗口支持 300k / 600k / 960k 三档，默认 960k：
   `hb config set context.window 600k`；也接受 `300000` 这样的数字。
+- 单次输出预算默认 `auto`：`reasoning_effort=max` 时 128k，其余 64k；
+  可用 `hb config set max_output_tokens 128k` 固定，`auto` 恢复自动。
 - 默认工作区可用 `hb config set workdir D:\code\your-project` 固定；`--cwd` 优先于配置，
   配置优先于进程当前目录。`hb init` 会把选择的工作区写入配置。
 - 严格质量契约：`hb config set rigor strict`。它只追加质量提示并检查占位符，

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/core"
@@ -97,7 +98,12 @@ func New(cfg Config) *Engine {
 		cfg.Approval.Net = "ask"
 	}
 	if cfg.MaxOutputTokens <= 0 {
-		cfg.MaxOutputTokens = 65536
+		// 推理模型把思考算进输出预算：max 档给 128k，其余 64k。
+		if strings.EqualFold(cfg.ReasoningEffort, "max") {
+			cfg.MaxOutputTokens = 128000
+		} else {
+			cfg.MaxOutputTokens = 65536
+		}
 	}
 	if cfg.Rigor == "" {
 		cfg.Rigor = "normal"

@@ -77,6 +77,7 @@ func RunApprove(opts GlobalOptions, args []string) error {
 		ReasoningEffort: cfg.ReasoningEffort,
 		ContextWindow:   contextWindow,
 		Rigor:           cfg.Rigor,
+		MaxOutputTokens: cfg.MaxOutputTokens,
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), parseTimeout(opts.Timeout, cfg.Timeout))
 	defer cancel()

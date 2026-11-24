@@ -24,6 +24,8 @@ type Config struct {
 	Workdir string `json:"workdir,omitempty"`
 	// Rigor 是质量契约等级：normal | strict。
 	Rigor string `json:"rigor,omitempty"`
+	// MaxOutputTokens 是单次输出预算；0 表示按思考强度自动（64k / 128k）。
+	MaxOutputTokens int `json:"max_output_tokens,omitempty"`
 	// ReasoningEffort 是思考强度：low | high | max；空为提供方默认。
 	ReasoningEffort string `json:"reasoning_effort,omitempty"`
 	Approval        struct {

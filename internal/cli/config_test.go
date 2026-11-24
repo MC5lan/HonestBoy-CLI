@@ -23,6 +23,31 @@ func TestConfigReasoningEffort(t *testing.T) {
 	}
 }
 
+func TestConfigOutputBudget(t *testing.T) {
+	c := store.DefaultConfig()
+	if c.MaxOutputTokens != 0 {
+		t.Fatalf("default max output = %d, want auto(0)", c.MaxOutputTokens)
+	}
+	if v, ok := configField(c, "max_output_tokens"); !ok || v != "auto" {
+		t.Fatalf("get auto = %q, %v", v, ok)
+	}
+	if err := setConfigField(&c, "max_output_tokens", "128k"); err != nil {
+		t.Fatal(err)
+	}
+	if c.MaxOutputTokens != 128000 {
+		t.Fatalf("max output = %d", c.MaxOutputTokens)
+	}
+	if err := setConfigField(&c, "max_output_tokens", "auto"); err != nil {
+		t.Fatal(err)
+	}
+	if c.MaxOutputTokens != 0 {
+		t.Fatalf("auto reset = %d", c.MaxOutputTokens)
+	}
+	if err := setConfigField(&c, "max_output_tokens", "bogus"); err == nil {
+		t.Fatal("invalid output budget should be rejected")
+	}
+}
+
 func TestConfigRigor(t *testing.T) {
 	c := store.DefaultConfig()
 	if c.Rigor != "normal" {

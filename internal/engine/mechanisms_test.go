@@ -81,12 +81,12 @@ func TestStrictRigorPromptAndQualityWarn(t *testing.T) {
 
 // 推理模型的输出预算不能按轮数估算，且不得超过上下文窗口的一半。
 func TestMaxOutputTokensBudget(t *testing.T) {
-	mk := func(window int) *Engine {
+	mk := func(window int, effort string) *Engine {
 		root := t.TempDir()
 		st := store.NewSessionStore(store.Paths{
 			Root: root, Sessions: filepath.Join(root, "sessions"), Logs: filepath.Join(root, "logs"),
 		})
-		e := New(Config{Store: st, ContextWindow: window})
+		e := New(Config{Store: st, ContextWindow: window, ReasoningEffort: effort})
 		t.Cleanup(func() {
 			if e.ledgerFile != nil {
 				e.ledgerFile.Close()
@@ -94,14 +94,17 @@ func TestMaxOutputTokensBudget(t *testing.T) {
 		})
 		return e
 	}
-	if got := mk(0).cfg.MaxOutputTokens; got != 65536 {
+	if got := mk(0, "").cfg.MaxOutputTokens; got != 65536 {
 		t.Fatalf("default MaxOutputTokens = %d", got)
 	}
-	if got := mk(16000).cfg.MaxOutputTokens; got != 8000 {
+	if got := mk(0, "max").cfg.MaxOutputTokens; got != 128000 {
+		t.Fatalf("max effort output budget = %d, want 128000", got)
+	}
+	if got := mk(16000, "").cfg.MaxOutputTokens; got != 8000 {
 		t.Fatalf("capped MaxOutputTokens = %d, want 8000", got)
 	}
-	if got := mk(960000).cfg.MaxOutputTokens; got != 65536 {
-		t.Fatalf("960k MaxOutputTokens = %d, want 65536", got)
+	if got := mk(960000, "max").cfg.MaxOutputTokens; got != 128000 {
+		t.Fatalf("960k/max MaxOutputTokens = %d, want 128000", got)
 	}
 }
 

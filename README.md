@@ -104,6 +104,7 @@ hb                                 # TUI（需要 TTY）
 | `workdir` | 当前目录 | 默认工作区（沙箱边界）；`--cwd` 可临时覆盖 |
 | `context.window` | `960k` | 上下文窗口：`300k` / `600k` / `960k` |
 | `reasoning_effort` | 提供方默认 | 思考强度：`low` / `high` / `max` |
+| `max_output_tokens` | `auto` | 单次输出预算；`auto` 时 max 思考为 128k、其余 64k |
 | `rigor` | `normal` | `strict` 启用严格质量契约与占位符检查 |
 | `approval.write` / `.exec` | `auto` / `ask` | 写文件 / 执行命令的审批策略 |
 
