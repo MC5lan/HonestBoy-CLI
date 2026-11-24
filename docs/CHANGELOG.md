@@ -1,6 +1,6 @@
 # 变更记录
 
-## Unreleased
+## v0.1.0 - 2026-11-24
 
 ### TUI 交互重构（A+B+C）
 
@@ -69,11 +69,8 @@
 - 补齐 `docs/troubleshooting.md` 与 `docs/frozen-scope.md`，不再是指向空文档的链接。
 - 文档一致性测试覆盖 `docs/commands.md` 的命令表与快捷键表，并校验 README 中的命令真实存在。
 
-## v0.1.0（规划中）
+### v0.1.0 覆盖范围
 - 阶段 1–13 实现：core 状态机与 Gate、三套模型协议（Chat Completions / Anthropic Messages / Responses）、
   沙箱工具集、非交互 CLI、会话落盘与哈希链、三态探针、Bubble Tea TUI 与富渲染、
   审批往返与会话恢复、结构化日志与脱敏、错误码、goreleaser / winget / scoop 分发清单。
 - 接地谓词、验证器分级、运行/通过分离、原文哈希、形态观测量等机制依据项目设计论文落地。
-
-## Unreleased
-- 全量骨架与逐阶段实现推进中；详细范围见 README 与 `docs/architecture.md`。

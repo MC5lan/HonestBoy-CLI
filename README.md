@@ -8,7 +8,7 @@
   <a href="https://github.com/MC5lan/HonestBoy-CLI/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/MC5lan/HonestBoy-CLI/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Go" src="https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white">
   <img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue">
-  <img alt="Status" src="https://img.shields.io/badge/status-v0.1.0--dev-orange">
+  <img alt="Status" src="https://img.shields.io/badge/status-v0.1.0-blue">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey">
 </p>
 
