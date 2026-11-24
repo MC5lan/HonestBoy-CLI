@@ -42,6 +42,8 @@ func TestGoldenMarkdown(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				// 快照锁可见文本，不锁终端色彩配置；颜色由主题测试覆盖。
+				got = StripANSI(got)
 				file := filepath.Join(dir, name+"_"+strconv.Itoa(width)+"_dark.golden")
 				if os.Getenv("UPDATE_SNAPSHOTS") == "1" {
 					if err := os.WriteFile(file, []byte(got), 0o644); err != nil {
