@@ -6,6 +6,8 @@ import (
 )
 
 func TestExecuteGlobalFlags(t *testing.T) {
+	t.Setenv("LOCALAPPDATA", t.TempDir())
+	t.Setenv("HB_API_KEY", "")
 	cases := []struct {
 		name string
 		args []string

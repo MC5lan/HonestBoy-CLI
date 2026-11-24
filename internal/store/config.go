@@ -20,6 +20,8 @@ type Config struct {
 	Theme     string `json:"theme"`
 	MaxTurns  int    `json:"max_turns"`
 	Timeout   string `json:"timeout"`
+	// Workdir 是默认工作区（沙箱边界）；空表示使用进程当前目录。
+	Workdir string `json:"workdir,omitempty"`
 	// ReasoningEffort 是思考强度：low | high | max；空为提供方默认。
 	ReasoningEffort string `json:"reasoning_effort,omitempty"`
 	Approval        struct {

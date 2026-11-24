@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -32,6 +33,7 @@ func RunConfig(opts GlobalOptions, args []string) error {
 		fmt.Fprintf(os.Stdout, "api_key        = ***（来自 %s）\n", firstNonEmpty(cfg.APIKeyEnv, "HB_API_KEY"))
 		fmt.Fprintf(os.Stdout, "api_key_env    = %s\n", cfg.APIKeyEnv)
 		fmt.Fprintf(os.Stdout, "shell          = %s\n", cfg.Shell)
+		fmt.Fprintf(os.Stdout, "workdir        = %s\n", firstNonEmpty(cfg.Workdir, "(当前目录)"))
 		fmt.Fprintf(os.Stdout, "theme          = %s\n", cfg.Theme)
 		fmt.Fprintf(os.Stdout, "max_turns      = %d\n", cfg.MaxTurns)
 		fmt.Fprintf(os.Stdout, "reasoning      = %s\n", firstNonEmpty(cfg.ReasoningEffort, "(默认)"))
@@ -82,6 +84,8 @@ func configField(c store.Config, key string) (string, bool) {
 		return c.APIKeyEnv, true
 	case "shell":
 		return c.Shell, true
+	case "workdir":
+		return c.Workdir, true
 	case "theme":
 		return c.Theme, true
 	case "max_turns":
@@ -116,6 +120,16 @@ func setConfigField(c *store.Config, key, value string) error {
 		c.APIKeyEnv = value
 	case "shell":
 		c.Shell = value
+	case "workdir":
+		abs, err := filepath.Abs(value)
+		if err != nil {
+			return ErrUsage
+		}
+		st, err := os.Stat(abs)
+		if err != nil || !st.IsDir() {
+			return fmt.Errorf("%w: 工作区目录不存在: %s", ErrUsage, abs)
+		}
+		c.Workdir = abs
 	case "theme":
 		c.Theme = value
 	case "max_turns":

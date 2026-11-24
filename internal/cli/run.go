@@ -23,17 +23,13 @@ func RunRun(opts GlobalOptions, args []string) error {
 	defer logging.Close()
 	logging.L().Info("hb run", "model", opts.Model, "protocol", opts.Protocol)
 
-	workdir := opts.Cwd
-	if workdir == "" {
-		wd, err := os.Getwd()
-		if err != nil {
-			return ErrEnvironment
-		}
-		workdir = wd
+	cfg, err := store.Load()
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrEnvironment, err)
 	}
-	st, err := os.Stat(workdir)
-	if err != nil || !st.IsDir() {
-		return ErrUsage
+	workdir, err := ResolveWorkdir(opts.Cwd, cfg.Workdir)
+	if err != nil {
+		return err
 	}
 
 	prompt, err := readPrompt(args)
@@ -44,10 +40,6 @@ func RunRun(opts GlobalOptions, args []string) error {
 		return ErrUsage
 	}
 
-	cfg, err := store.Load()
-	if err != nil {
-		return fmt.Errorf("%w: %v", ErrEnvironment, err)
-	}
 	baseURL := firstNonEmpty(opts.BaseURL, cfg.BaseURL)
 	protocol := firstNonEmpty(opts.Protocol, cfg.Protocol)
 	apiKey := os.Getenv(firstNonEmpty(cfg.APIKeyEnv, "HB_API_KEY"))

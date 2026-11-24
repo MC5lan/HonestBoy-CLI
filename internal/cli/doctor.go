@@ -48,7 +48,10 @@ func RunDoctor(opts GlobalOptions, args []string) error {
 			fix: "检查 HTTPS_PROXY / 代理 / 防火墙",
 		})
 	}
-	wd, _ := os.Getwd()
+	wd, wderr := ResolveWorkdir("", cfg.Workdir)
+	if wderr != nil {
+		wd = cfg.Workdir
+	}
 	tmp := filepath.Join(wd, ".hb-doctor-"+fmt.Sprint(time.Now().UnixNano()))
 	werr := os.WriteFile(tmp, []byte("x"), 0o600)
 	if werr == nil {

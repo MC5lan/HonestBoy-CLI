@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/store"
@@ -19,6 +20,23 @@ func TestConfigReasoningEffort(t *testing.T) {
 	}
 	if err := setConfigField(&c, "reasoning_effort", "bogus"); err == nil {
 		t.Fatal("invalid effort should be rejected")
+	}
+}
+
+func TestConfigWorkdir(t *testing.T) {
+	c := store.DefaultConfig()
+	dir := t.TempDir()
+	if err := setConfigField(&c, "workdir", dir); err != nil {
+		t.Fatal(err)
+	}
+	if c.Workdir != dir {
+		t.Fatalf("Workdir = %q", c.Workdir)
+	}
+	if v, ok := configField(c, "workdir"); !ok || v != dir {
+		t.Fatalf("get = %q, %v", v, ok)
+	}
+	if err := setConfigField(&c, "workdir", filepath.Join(dir, "missing")); err == nil {
+		t.Fatal("missing directory should be rejected")
 	}
 }
 

@@ -30,6 +30,7 @@ func RunInit(opts GlobalOptions, args []string) error {
 	if st, err := os.Stat(workdir); err != nil || !st.IsDir() {
 		return fmt.Errorf("%w: 工作区目录不存在", ErrUsage)
 	}
+	cfg.Workdir = workdir
 
 	// 第二步：模型协议 + 端点 + 模型名。
 	fmt.Fprintln(out, "\n[2/3] 模型协议与端点")
@@ -85,8 +86,8 @@ func RunInit(opts GlobalOptions, args []string) error {
 	}
 	fmt.Fprintln(out, "\n"+strings.Repeat("─", 46))
 	fmt.Fprintln(out, "✓ 设置已保存到 "+store.ConfigPath())
-	fmt.Fprintf(out, "✓ 工作区: %s\n", workdir)
-	fmt.Fprintf(out, "✓ 试试: hb run \"读一下 README.md 并总结\" --cwd \"%s\"\n", workdir)
+	fmt.Fprintf(out, "✓ 工作区: %s（已保存为默认工作区）\n", workdir)
+	fmt.Fprintf(out, "✓ 试试: hb run \"读一下 README.md 并总结\"\n")
 	return nil
 }
 

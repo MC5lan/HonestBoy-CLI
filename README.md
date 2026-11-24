@@ -40,6 +40,7 @@ hb                               # TUI（需要 TTY）
 - **流程约束**：歧义暂停、自评阻断、测试计划三态、高危动作单次授权
 - **编程能力**：精确编辑 / `apply_patch` / 搜索 / shell / 验证器；上下文压缩、仓库地图、检查点回退
 - **上下文窗口**：300k / 600k / 960k 三档，默认 960k；`hb config set context.window 600k`
+- **默认工作区**：`hb config set workdir D:\code\your-project`；`--cwd` 可临时覆盖
 - **工作流**：计划模式 + `hb approve`、`--auto-commit`、`hb undo` / `hb diff`
 - **TUI**：像素吉祥物与球场动画、右侧可观测面板、`/` 命令面板、`?` 帮助页、审批往返
 - **模型**：OpenAI Chat、Anthropic Messages、OpenAI Responses 三套协议

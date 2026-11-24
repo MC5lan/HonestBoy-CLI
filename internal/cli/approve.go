@@ -34,9 +34,13 @@ func RunApprove(opts GlobalOptions, args []string) error {
 	}
 	fmt.Fprintf(os.Stdout, "批准计划，开始执行：\n%s\n\n", truncatePlan(plan, 400))
 
+	cfg, _ := store.Load()
 	workdir := opts.Cwd
 	if workdir == "" {
 		workdir = sess.Cwd
+	}
+	if workdir == "" {
+		workdir = cfg.Workdir
 	}
 	st, err := os.Stat(workdir)
 	if err != nil || !st.IsDir() {
@@ -48,7 +52,6 @@ func RunApprove(opts GlobalOptions, args []string) error {
 	}
 	defer sb.Close()
 
-	cfg, _ := store.Load()
 	contextWindow := cfg.Context.Window
 	if contextWindow <= 0 {
 		contextWindow = 960000

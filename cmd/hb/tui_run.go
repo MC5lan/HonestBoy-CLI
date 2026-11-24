@@ -21,9 +21,9 @@ func runTUI(resumeID string) error {
 	if err != nil {
 		return fmt.Errorf("%w: %v", cli.ErrEnvironment, err)
 	}
-	wd, err := os.Getwd()
+	wd, err := cli.ResolveWorkdir("", cfg.Workdir)
 	if err != nil {
-		return fmt.Errorf("%w: %v", cli.ErrEnvironment, err)
+		return err
 	}
 	contextWindow := cfg.Context.Window
 	if contextWindow <= 0 {
