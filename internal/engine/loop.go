@@ -81,6 +81,9 @@ func (e *Engine) runTurn(ctx context.Context, input string) (core.Terminal, erro
 	if e.cfg.SelfAssessment {
 		sys = sys + "\n" + core.SelfPromptFragment
 	}
+	if core.RigorEnabled(e.cfg.Rigor) {
+		sys = sys + "\n" + core.RigorPromptFragment
+	}
 	// 历史失败案例注入（文档 §3.5.4）：Top-3、阈值 0.35、标明来源是历史。
 	if e.cfg.LedgerRecall {
 		hits := e.ledger.Search(core.Query{Tags: extractTags(input), Files: changesPaths(input)}, 3, 0.35)
@@ -483,6 +486,13 @@ steps:
 					changes = append(changes, core.Change{Kind: core.ChangeCommand})
 				}
 				result = tools.Compress(r.Output)
+				if core.RigorEnabled(e.cfg.Rigor) && r.OK && (call.Name == "write_file" || call.Name == "edit_file" || call.Name == "apply_patch") {
+					if issues := core.PlaceholderWarnings(qualityText(call.Args)); len(issues) > 0 {
+						msg := "检测到占位符/未实现逻辑：" + strings.Join(issues, ", ")
+						e.emit(core.EvtNotice, core.NoticeData{Level: "warn", Text: msg + "（" + target + "）"})
+						result += "\n[质量检查] " + msg + "。请补全实现；如无法完成，请调用 declare_untested 说明缺口。"
+					}
+				}
 				if call.Name == "shell" {
 					// shell 成功但无输出很常见（如 node --check）；把退出码回传给模型，
 					// 避免它把“空输出”误判成失败。
@@ -558,7 +568,6 @@ func hasWriteCall(calls []llm.ToolCall) bool {
 	return false
 }
 
-// patchPaths 从 apply_patch 参数中提取被修改的文件路径。
 func patchPaths(args string) []string {
 	var m struct {
 		Patch string `json:"patch"`
@@ -579,6 +588,20 @@ func patchPaths(args string) []string {
 		}
 	}
 	return out
+}
+
+// qualityText 只取本次写入的新内容做质量扫描，避免 edit 的 old 片段误报。
+func qualityText(args string) string {
+	var m map[string]any
+	if json.Unmarshal([]byte(args), &m) != nil {
+		return args
+	}
+	for _, k := range []string{"content", "new", "patch", "new_string"} {
+		if v, ok := m[k].(string); ok {
+			return v
+		}
+	}
+	return args
 }
 
 // outsideRead 区分“用户要读”与“模型想读”：只有用户输入里出现该路径才发起单独审批。

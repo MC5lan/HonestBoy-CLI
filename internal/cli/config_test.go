@@ -23,6 +23,25 @@ func TestConfigReasoningEffort(t *testing.T) {
 	}
 }
 
+func TestConfigRigor(t *testing.T) {
+	c := store.DefaultConfig()
+	if c.Rigor != "normal" {
+		t.Fatalf("default rigor = %q", c.Rigor)
+	}
+	if err := setConfigField(&c, "rigor", "strict"); err != nil {
+		t.Fatal(err)
+	}
+	if c.Rigor != "strict" {
+		t.Fatalf("rigor = %q", c.Rigor)
+	}
+	if v, ok := configField(c, "rigor"); !ok || v != "strict" {
+		t.Fatalf("get = %q, %v", v, ok)
+	}
+	if err := setConfigField(&c, "rigor", "bogus"); err == nil {
+		t.Fatal("invalid rigor should be rejected")
+	}
+}
+
 func TestConfigWorkdir(t *testing.T) {
 	c := store.DefaultConfig()
 	dir := t.TempDir()

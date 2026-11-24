@@ -101,4 +101,7 @@ func TestConfigRoundTrip(t *testing.T) {
 	if got.Context.Window != 960000 {
 		t.Fatalf("context window = %d, want 960000", got.Context.Window)
 	}
+	if got.Rigor != "normal" {
+		t.Fatalf("rigor = %q, want normal", got.Rigor)
+	}
 }

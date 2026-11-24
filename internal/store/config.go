@@ -22,6 +22,8 @@ type Config struct {
 	Timeout   string `json:"timeout"`
 	// Workdir 是默认工作区（沙箱边界）；空表示使用进程当前目录。
 	Workdir string `json:"workdir,omitempty"`
+	// Rigor 是质量契约等级：normal | strict。
+	Rigor string `json:"rigor,omitempty"`
 	// ReasoningEffort 是思考强度：low | high | max；空为提供方默认。
 	ReasoningEffort string `json:"reasoning_effort,omitempty"`
 	Approval        struct {
@@ -52,7 +54,7 @@ type Config struct {
 }
 
 func DefaultConfig() Config {
-	c := Config{SchemaVersion: 1, Protocol: "openai-chat", APIKeyEnv: "HB_API_KEY", Shell: "cmd", Theme: "auto", MaxTurns: 20, Timeout: "10m"}
+	c := Config{SchemaVersion: 1, Protocol: "openai-chat", APIKeyEnv: "HB_API_KEY", Shell: "cmd", Theme: "auto", MaxTurns: 20, Timeout: "10m", Rigor: "normal"}
 	c.Context.BudgetRatio = 0.7
 	c.Context.KeepRecent = 2
 	c.Context.HBMDLimit = 16384

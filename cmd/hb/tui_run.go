@@ -68,6 +68,7 @@ func runTUI(resumeID string) error {
 			PlanFirst:       true,
 			ReasoningEffort: cfg.ReasoningEffort,
 			ContextWindow:   contextWindow,
+			Rigor:           cfg.Rigor,
 			Tracer:          core.NewTracer(filepath.Join(store.DefaultPaths().Root, "trace")),
 		})
 		return eng.Run(ctx, prompt)

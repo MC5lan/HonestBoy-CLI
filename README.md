@@ -41,6 +41,7 @@ hb                               # TUI（需要 TTY）
 - **编程能力**：精确编辑 / `apply_patch` / 搜索 / shell / 验证器；上下文压缩、仓库地图、检查点回退
 - **上下文窗口**：300k / 600k / 960k 三档，默认 960k；`hb config set context.window 600k`
 - **默认工作区**：`hb config set workdir D:\code\your-project`；`--cwd` 可临时覆盖
+- **严格质量契约**：`hb config set rigor strict`；占位符告警 + 完整实现/边界/安全要求，不改变 Gate
 - **工作流**：计划模式 + `hb approve`、`--auto-commit`、`hb undo` / `hb diff`
 - **TUI**：像素吉祥物与球场动画、右侧可观测面板、`/` 命令面板、`?` 帮助页、审批往返
 - **模型**：OpenAI Chat、Anthropic Messages、OpenAI Responses 三套协议
@@ -103,6 +104,7 @@ install -m 755 bin/hb ~/.local/bin/hb   # 确保 ~/.local/bin 在 PATH
 - [命令与快捷键](docs/commands.md)
 - [证据格式](docs/evidence-format.md)
 - [故障排查](docs/troubleshooting.md)
+- [严格质量契约](docs/rigor.md)
 - [发布清单](docs/release-checklist.md)
 
 ## 开发

@@ -75,6 +75,7 @@ func RunRun(opts GlobalOptions, args []string) error {
 		PlanMode: opts.Plan, AutoCommit: opts.AutoCommit,
 		ReasoningEffort: cfg.ReasoningEffort,
 		ContextWindow:   contextWindow,
+		Rigor:           cfg.Rigor,
 		SelfAssessment:  true, AmbiguityHalt: true, LedgerRecall: true, PlanFirst: true,
 		Tracer: core.NewTracer(filepath.Join(store.DefaultPaths().Root, "trace")),
 	})

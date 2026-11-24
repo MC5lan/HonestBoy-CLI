@@ -35,6 +35,50 @@ func TestHTMLTaskCompletesWithDiff(t *testing.T) {
 	}
 }
 
+// strict 模式注入质量契约，并把占位符警告回传给模型。
+func TestStrictRigorPromptAndQualityWarn(t *testing.T) {
+	client := &scriptedClient{responses: [][]llm.Chunk{
+		{
+			{Text: "[SELF]\nconf: high\nmissing: none\nassumption: none\nfalsify: none\n"},
+			call("w", "write_file", `{"path":"a.txt","content":"TODO: implement this"}`),
+		},
+		{
+			{Text: "[SELF]\nconf: high\nmissing: none\nassumption: none\nfalsify: none\n"},
+			doneCall("d", "完成"),
+		},
+	}}
+	eng := newTestEngine(t, client)
+	eng.cfg.Rigor = "strict"
+	eng.cfg.SelfAssessment = true
+	rs := runEngine(t, eng, "写文件")
+	if rs.terminal != core.TermDone {
+		t.Fatalf("terminal = %s", rs.terminal)
+	}
+	if len(client.requests) < 2 || !strings.Contains(client.requests[0].Messages[0].Content, "质量契约") {
+		t.Fatal("strict prompt not injected")
+	}
+	foundNotice := false
+	for _, ev := range rs.events {
+		if ev.Type == core.EvtNotice {
+			if d, ok := ev.Data.(core.NoticeData); ok && strings.Contains(d.Text, "占位符") {
+				foundNotice = true
+			}
+		}
+	}
+	if !foundNotice {
+		t.Fatal("missing placeholder notice")
+	}
+	foundTool := false
+	for _, m := range client.requests[1].Messages {
+		if m.Role == "tool" && strings.Contains(m.Content, "质量检查") {
+			foundTool = true
+		}
+	}
+	if !foundTool {
+		t.Fatal("quality warning not passed back to model")
+	}
+}
+
 // 推理模型的输出预算不能按轮数估算，且不得超过上下文窗口的一半。
 func TestMaxOutputTokensBudget(t *testing.T) {
 	mk := func(window int) *Engine {

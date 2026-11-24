@@ -41,7 +41,9 @@ type Config struct {
 	MaxOutputTokens int
 	// ReasoningEffort 是思考强度（low/high/max）；空表示用提供方默认。
 	ReasoningEffort string
-	Tracer          *core.Tracer
+	// Rigor 是质量契约等级：normal | strict。
+	Rigor  string
+	Tracer *core.Tracer
 }
 
 // ResolveClient 按配置解析模型客户端；显式注入优先。
@@ -96,6 +98,9 @@ func New(cfg Config) *Engine {
 	}
 	if cfg.MaxOutputTokens <= 0 {
 		cfg.MaxOutputTokens = 65536
+	}
+	if cfg.Rigor == "" {
+		cfg.Rigor = "normal"
 	}
 	if cfg.ContextWindow > 0 && cfg.MaxOutputTokens > cfg.ContextWindow/2 {
 		cfg.MaxOutputTokens = cfg.ContextWindow / 2
