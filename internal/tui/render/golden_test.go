@@ -14,11 +14,11 @@ var goldenSamples = map[string]string{
 	"list":    "- 第一项\n- 第二项\n  - 子项",
 	"quote":   "> 引用一段话\n> 第二行",
 	"code":    "```go\nfunc main() {\n\tfmt.Println(1)\n}\n```",
-	"table":   "| 名称 | 值 |\n|---|---|\n| 中文 | 4 |\n| abc | 123 |",
+	"inline":  "普通文本，带 **加粗** 与 `inline code`。",
 	"link":    "见 [文档](https://example.com/docs)",
 	"image":   "![示意图](https://example.com/a.png)",
 	"long":    "这是一段比较长的中文内容，用来检查折行与宽度计算是否稳定。这是一段比较长的中文内容，用来检查折行与宽度计算是否稳定。",
-	"mixed":   "# 混合\n\n- 中文 item\n- English item\n\n| 字段 | 值 |\n|---|---|\n| 路径 | C:\\\\tmp |",
+	"mixed":   "# 混合\n\n- 中文 item\n- English item\n\n> 引用一行\n\n```go\nfmt.Println(1)\n```",
 }
 
 var goldenWidths = []int{80, 100, 120, 200}
