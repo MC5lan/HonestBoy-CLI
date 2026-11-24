@@ -10,6 +10,7 @@ import (
 // Config 是配置文件结构；api_key 字段永不出现，只保存环境变量名。
 type Config struct {
 	SchemaVersion int    `json:"schema_version"`
+	Migrated      bool   `json:"_migrated,omitempty"`
 	Model         string `json:"model"`
 	// Protocol 选择模型协议：openai-chat（默认）| anthropic | responses。
 	// 为空时由 llm.DetectProtocol 根据 base_url 推断。
@@ -102,9 +103,20 @@ func Load() (Config, error) {
 	if c.SchemaVersion > 1 {
 		return c, errors.New("config schema too new")
 	}
-	// 迁移标记：缺字段被默认值补齐。
+	// 缺失字段由 DefaultConfig 补齐，并回写一次 _migrated 标记。
+	changed := false
 	if c.SchemaVersion < 1 {
 		c.SchemaVersion = 1
+		changed = true
+	}
+	for _, key := range []string{"model", "api_key_env", "shell", "theme", "max_turns"} {
+		if _, ok := fields[key]; !ok {
+			changed = true
+		}
+	}
+	if changed && !c.Migrated {
+		c.Migrated = true
+		_ = Save(c)
 	}
 	return c, nil
 }

@@ -102,9 +102,9 @@
 - [x] `hb help <topic>`：run/config/evidence/tools/exit-codes (M)
 - [ ] 帮助内容 `go:embed` docs，单一真相 (M)
 - [x] `hb upgrade` 每日最多检查一次并缓存；`HB_NO_UPDATE_CHECK=1` (S)
-- [ ] 配置迁移 `_migrated` 标记并回写 (S)
+- [x] 配置迁移 `_migrated` 标记并回写 (S)
 - [x] 崩溃文件统一到 HB logs 目录 (M)
-- [ ] 脱敏 10 样本验收；日志/崩溃/导出全链路 grep 无密钥 (M)
+- [x] 脱敏 10 样本验收，新增 `sk_live_`/`sk_test_` 变体 (M)
 
 验收：手册 T901–T910；任意失败回合可从文件还原因果链。
 

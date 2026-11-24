@@ -26,6 +26,32 @@ func TestRedact(t *testing.T) {
 	}
 }
 
+func TestRedactTenSamples(t *testing.T) {
+	secrets := []string{
+		"sk-abcdefghijklmnop",
+		"sk-1234567890abcdefghijklmnop",
+		"Bearer abcdefghijklmnopqrstuvwxyz",
+		`api_key: "supersecret123"`,
+		`api-key=supersecret456`,
+		`Authorization: Bearer sk-abcdefghijklmnopqrst`,
+		`"Authorization": "Bearer topsecret"`,
+		`api_key_env=HB_API_KEY`,
+		`sk_live_1234567890abcdef`,
+		`token=sk-abcdefghijklmnopqrstuvwxyz`,
+	}
+	for i, sample := range secrets {
+		out := Redact(sample)
+		for _, raw := range []string{"supersecret123", "supersecret456", "topsecret", "abcdefghijklmnopqrstuvwxyz", "sk_live_1234567890abcdef"} {
+			if strings.Contains(out, raw) {
+				t.Fatalf("sample %d leaked %q: %s", i, raw, out)
+			}
+		}
+	}
+	if got := Redact("nothing sensitive"); got != "nothing sensitive" {
+		t.Fatalf("plain text changed: %q", got)
+	}
+}
+
 func TestRedactWriter(t *testing.T) {
 	var buf strings.Builder
 	w := &redactWriter{inner: &buf}

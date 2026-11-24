@@ -7,6 +7,7 @@ import (
 
 var secretPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`sk-[A-Za-z0-9_\-]{16,}`),
+	regexp.MustCompile(`sk[_-](?:live_|test_)?[A-Za-z0-9_\-]{16,}`),
 	regexp.MustCompile(`Bearer\s+\S+`),
 	regexp.MustCompile(`(?i)api[_-]?key["'\s:=]+[A-Za-z0-9_\-]{8,}`),
 	regexp.MustCompile(`(?i)authorization["'\s:=]+bearer\s+\S+`),
