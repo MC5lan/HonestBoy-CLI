@@ -117,6 +117,20 @@ func (s *SessionStore) Create(meta core.Session) error {
 	})
 }
 
+// Open 锁定并加载已有会话，供下一回合续接（不重写 meta 行）。
+func (s *SessionStore) Open(id string) (*core.Session, error) {
+	if err := s.Lock(id); err != nil {
+		return nil, err
+	}
+	sess, err := s.Load(id)
+	if err != nil {
+		_ = s.Unlock()
+		return nil, err
+	}
+	s.sessionID = id
+	return sess, nil
+}
+
 func (s *SessionStore) SessionID() string { return s.sessionID }
 
 func (s *SessionStore) AppendEvent(e core.Event) error {

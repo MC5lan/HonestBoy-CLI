@@ -16,7 +16,7 @@ import (
 )
 
 // runTurn 是单次回合主循环：模型流 → 工具执行 → Gate 判定 → 终态与 Receipt。
-func (e *Engine) runTurn(ctx context.Context, input string) (core.Terminal, error) {
+func (e *Engine) runTurn(ctx context.Context, input, history string) (core.Terminal, error) {
 	s := e.session
 	turn := &core.Turn{ID: "t_" + shortID(input+time.Now().UTC().Format(time.RFC3339Nano))}
 	s.Turns = append(s.Turns, turn)
@@ -72,9 +72,16 @@ func (e *Engine) runTurn(ctx context.Context, input string) (core.Terminal, erro
 	if e.cfg.RepoMapTokens >= 0 && !isHomeDir(e.cfg.Workdir) {
 		repoMap = RepoMapContext(e.cfg.Workdir, e.cfg.RepoMapTokens)
 	}
+	extra := repoMap
+	if history != "" {
+		if extra != "" {
+			extra += "\n\n"
+		}
+		extra += "## 之前回合\n" + history
+	}
 	sys := AssembleContext(systemPrompt,
 		LoadProjectContext(e.cfg.Workdir, e.cfg.HBMDLimit),
-		EnvContext(e.cfg.Workdir), repoMap, "")
+		EnvContext(e.cfg.Workdir), extra, "")
 	if e.cfg.PlanMode {
 		sys = WithPlanRules(sys)
 	}
@@ -166,7 +173,7 @@ steps:
 			e.usage.Add(stepUsage)
 			e.emit(core.EvtUsage, core.UsageData{
 				TokensIn: int64(e.usage.In), TokensOut: int64(e.usage.Out),
-				CostMicros: e.usage.CostMicros,
+				CostMicros: e.usage.CostMicros, PromptTokens: int64(stepUsage.In),
 			})
 		}
 		// 输出被 max_tokens 截断且没有任何工具调用：本步没有可执行结果，
@@ -448,6 +455,7 @@ steps:
 					CallID: call.ID, OK: r.OK, ExitCode: exitCode,
 					DurationMS: time.Since(started).Milliseconds(),
 					Output:     truncateRunes(r.Output, 2000), Truncated: len(r.Output) > 2000,
+					Diff: truncateRunes(r.Meta["diff"], 12000),
 				})
 				if !r.OK {
 					target := argString(call.Args, "path")

@@ -11,6 +11,7 @@ var toolLabels = map[string]string{
 	"list_dir": "查看目录", "search": "搜索", "shell": "执行命令",
 	"verify_build": "验证构建", "verify_test": "运行测试", "verify_vet": "静态检查",
 	"apply_patch": "应用补丁", "request_done": "申请完成", "declare_untested": "声明未验证",
+	"outside_read": "读取工作区外文件",
 }
 
 // ToolLabel 把内部工具名翻译成中文动作。
@@ -36,6 +37,10 @@ func ToolAction(name, args string) string {
 		return "查看目录 " + firstArg(args, "path")
 	case "search":
 		return "搜索 " + firstArg(args, "pattern")
+	case "request_done":
+		return "申请完成"
+	case "declare_untested":
+		return "声明未验证"
 	default:
 		return ToolLabel(name)
 	}

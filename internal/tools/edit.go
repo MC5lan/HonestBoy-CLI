@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/core"
+	"github.com/MC5lan/HonestBoy-CLI/internal/diff"
 )
 
 // EditFileTool 做精确字符串替换，不做模糊匹配。
@@ -99,9 +100,12 @@ func (t *EditFileTool) Run(ctx context.Context, args json.RawMessage) (Result, e
 	}
 	t.guard.MarkRead(a.Path, out)
 	return Result{
-		Output:     fmt.Sprintf("已编辑 %s（替换 %d 处）", a.Path, n),
-		OK:         true,
-		Meta:       map[string]string{"sha256": sha256Hex(out), "replacements": fmt.Sprint(n)},
+		Output: fmt.Sprintf("已编辑 %s（替换 %d 处）", a.Path, n),
+		OK:     true,
+		Meta: map[string]string{
+			"sha256": sha256Hex(out), "replacements": fmt.Sprint(n),
+			"diff": diff.Unified(a.Path, content, normalizeLF(string(out))),
+		},
 		Provenance: core.ProvObserved,
 	}, nil
 }

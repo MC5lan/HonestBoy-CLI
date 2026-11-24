@@ -100,7 +100,7 @@ func TestSubmitAndCancelFlow(t *testing.T) {
 	m.setSize(80, 30)
 	m.input.SetValue("读文件")
 	ctx, cancel := context.WithCancel(context.Background())
-	m.cfg.Run = func(prompt string) (<-chan core.Event, <-chan error) {
+	m.cfg.Run = func(prompt, sessionID string) (<-chan core.Event, <-chan error) {
 		events := make(chan core.Event, 4)
 		errs := make(chan error, 1)
 		go func() {

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/core"
+	"github.com/MC5lan/HonestBoy-CLI/internal/diff"
 )
 
 const (
@@ -203,10 +204,17 @@ func (t *WriteFileTool) Run(ctx context.Context, args json.RawMessage) (Result, 
 		return failResult("原子替换失败: " + err.Error())
 	}
 	t.guard.MarkRead(a.Path, []byte(content))
+	before := ""
+	if statErr == nil {
+		before = normalizeLF(string(existing))
+	}
 	return Result{
-		Output:     fmt.Sprintf("已写入 %s (%d 字节)", a.Path, len(content)),
-		OK:         true,
-		Meta:       map[string]string{"sha256": sha256Hex([]byte(content))},
+		Output: fmt.Sprintf("已写入 %s (%d 字节)", a.Path, len(content)),
+		OK:     true,
+		Meta: map[string]string{
+			"sha256": sha256Hex([]byte(content)),
+			"diff":   diff.Unified(a.Path, before, normalizeLF(content)),
+		},
 		Provenance: core.ProvObserved,
 	}, nil
 }

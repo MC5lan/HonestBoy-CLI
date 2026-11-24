@@ -13,7 +13,7 @@ func TestPanelShowsObservables(t *testing.T) {
 	m.applyEvent(core.Event{Seq: 1, Type: core.EvtToolEnd, Data: core.ToolEndData{CallID: "c", OK: true}})
 	m.applyEvent(core.Event{Seq: 2, Type: core.EvtGateDeny, Data: core.GateDenyData{Rule: "coverage", Reason: "缺少 test"}})
 	panel := stripANSI.ReplaceAllString(m.renderPanel(26), "")
-	for _, want := range []string{"可观测", "证据", "Gate", "coverage", "拒绝"} {
+	for _, want := range []string{"状态", "Gate", "coverage", "本轮", "会话"} {
 		if !strings.Contains(panel, want) {
 			t.Fatalf("panel missing %q:\n%s", want, panel)
 		}

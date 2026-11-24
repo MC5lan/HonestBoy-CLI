@@ -40,23 +40,41 @@
 |---|---|
 | `/model <name>` | 切换模型并写回配置（失败时保留原模型） |
 | `/config` `/path` | 显示配置摘要与完整仓库路径 |
+| `/clear` `/new` | 清空显示 / 开始新会话（下一次输入创建新会话） |
 | `/verify` | 内联校验所有会话证据链 |
 | `/stats` | 内联显示终态分布与 FCR |
-| `/sessions` | 最近 10 个会话 |
-| `/context` | 当前 token 用量与剩余百分比 |
+| `/sessions` | 打开会话选择器（仅当前工作区），回车恢复并续接该会话 |
+| `/diff` `/undo` | 查看工作区 diff / 撤销最近一次自动提交 |
+| `/rewind` | 列出检查点；`/rewind restore <id>` 恢复 |
+| `/approve <session-id>` | 读取计划模式的 Receipt 并执行该计划 |
+| `/context` | 最近一步提示词占用与估算剩余百分比 |
 | `/compact` | 说明自动压缩策略（下一回合生效） |
+| `/verbose` | 展开/折叠工具输出（等同 Ctrl+O） |
+| `/setup` `/help` `/quit` | 配置向导说明 / 帮助 / 退出 |
 
-`/verify` `/stats` `/sessions` 通过注入的 `Exec` 回调访问 store，TUI 包本身不依赖 store/engine。
+命令面板：输入 `/` 打开；`↑ / ↓` 选择，`Tab` 补全，`Enter` 执行高亮项。
+需要参数的命令（如 `/model`）按 `Enter` 只补全命令名，继续输入参数后再提交。
+
+回合进行中提交的普通任务会进入队列，本回合结束后自动发送；`Esc` 中断并清空队列。
+TUI 默认续接同一会话；`/new` 或 `/sessions` 可切换。输入历史落盘到
+`%LOCALAPPDATA%\HB\tui_history.json`，下次启动可继续用 `↑ / ↓` 翻。
+
+`/verify` `/stats` `/diff` `/undo` `/rewind` 走注入的 `Exec` 回调；
+`/sessions` 走 `ListSessions` / `ResumeSession` 回调。TUI 包本身不依赖 store/engine。
 
 ## TUI 快捷键
 
 | 快捷键 | 行为 |
 |---|---|
-| `Enter` | 提交任务或执行命令 |
-| `Ctrl+C` | 中断当前回合（空闲时退出） |
+| `Enter` | 提交任务或执行命令；命令面板中执行高亮项 |
+| `Alt+Enter` | 输入换行（多行任务） |
+| `Ctrl+C` | 中断当前回合（空闲时退出）；审批与帮助页同样生效 |
 | `Ctrl+L` | 清空对话显示 |
-| `Esc` | 忙碌时中断；空闲时关闭提示 |
-| `↑ / ↓` | 翻历史输入 / 在命令面板内选择 |
+| `Ctrl+O` | 展开/折叠工具输出 |
+| `Ctrl+U / Ctrl+D` | 对话区上/下半页 |
+| `PgUp / PgDn` | 对话区翻页（鼠标滚轮同效） |
+| `Esc` | 忙碌时中断并清空队列；空闲时关闭面板/提示 |
+| `↑ / ↓` | 翻历史输入 / 在命令面板与会话列表内选择 |
 | `Tab` | 补全斜杠命令 |
 | `?` | 打开或关闭快捷键帮助 |
 | `/` | 打开命令面板 |
@@ -78,7 +96,8 @@ DeepSeek 思考模式（`deepseek-flash`）默认开启。适配器会解析并�
 
 ## 上下文与撤销
 
-- 每轮自动装配：系统提示 → `HB.md`/`AGENTS.md` → 环境（OS/cwd/日期 + `git status --short` 与 `git diff --stat`）→ 任务。
+- 每轮自动装配：系统提示 → `HB.md`/`AGENTS.md` → 环境（OS/cwd/日期 + `git status --short` 与 `git diff --stat`）
+  → 仓库地图与上一轮历史 → 任务。
 - 上下文预算为窗口的 70%；超出时旧对话丢弃、旧工具输出截到 200 字符，并发 `notice{info}` 报告裁剪条数；
   最近 2 轮与 system 永远保留。
 - 上下文窗口支持 300k / 600k / 960k 三档，默认 960k：

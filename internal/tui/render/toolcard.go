@@ -1,12 +1,9 @@
 package render
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 )
-
-func jsonUnmarshal(data []byte, v any) error { return json.Unmarshal(data, v) }
 
 // ToolCard 生成折叠/展开态的工具卡片。折叠态严格一行，失败默认展开。
 // 只接收值类型，避免 tui/render 依赖 tools 包（依赖方向约束）。
@@ -17,11 +14,14 @@ func ToolCard(name, args, output string, ok bool, durationMS int64, width int, c
 		mark = "✗ "
 	}
 	head := fmt.Sprintf("• %s%s (%s)", mark, name, formatDuration(durationMS))
-	if width > 0 && Width(head) > width {
-		head = Truncate(head, width)
+	if collapsed && strings.TrimSpace(output) != "" {
+		head += " · ctrl+o 展开"
 	}
 	if !ok {
 		collapsed = false
+	}
+	if width > 0 && Width(head) > width {
+		head = Truncate(head, width)
 	}
 	if collapsed {
 		return head
@@ -45,25 +45,4 @@ func formatDuration(ms int64) string {
 		return fmt.Sprintf("%d毫秒", ms)
 	}
 	return fmt.Sprintf("%.1f秒", float64(ms)/1000)
-}
-
-// compactArgs 把 JSON 参数压成一行可读摘要，避免整段 JSON 塞进卡片。
-func compactArgs(args string) string {
-	s := strings.TrimSpace(strings.ReplaceAll(args, "\n", " "))
-	if s == "" {
-		return ""
-	}
-	var out map[string]any
-	if err := jsonUnmarshal([]byte(s), &out); err == nil {
-		// 优先显示 path / command / pattern 这些最有信息量的字段。
-		for _, key := range []string{"path", "command", "pattern", "target"} {
-			if v, ok := out[key]; ok {
-				return key + "=" + fmt.Sprint(v)
-			}
-		}
-	}
-	if len([]rune(s)) > 40 {
-		return string([]rune(s)[:40]) + "…"
-	}
-	return s
 }

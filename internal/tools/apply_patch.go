@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/core"
+	"github.com/MC5lan/HonestBoy-CLI/internal/diff"
 )
 
 // ApplyPatchTool 解析 Codex 风格的 *** Begin Patch 补丁，支持 Add/Delete/Update File。
@@ -121,6 +122,7 @@ func (t *ApplyPatchTool) Run(ctx context.Context, args json.RawMessage) (Result,
 		return failResult("补丁解析失败: " + err.Error())
 	}
 	var changed []string
+	var diffs []string
 	for _, sec := range sections {
 		if sec.path == "" {
 			return failResult("补丁中的文件路径为空")
@@ -137,6 +139,7 @@ func (t *ApplyPatchTool) Run(ctx context.Context, args json.RawMessage) (Result,
 			if err := t.writeAtomic(sec.path, []byte(b.String()), nil); err != nil {
 				return failResult("新增文件失败: " + err.Error())
 			}
+			diffs = append(diffs, diff.Unified(sec.path, "", b.String()))
 			changed = append(changed, sec.path+" (新增)")
 		case "delete":
 			existing, err := t.sb.ReadFile(sec.path)
@@ -149,6 +152,7 @@ func (t *ApplyPatchTool) Run(ctx context.Context, args json.RawMessage) (Result,
 			if err := t.sb.Remove(sec.path); err != nil {
 				return failResult("删除失败: " + err.Error())
 			}
+			diffs = append(diffs, diff.Unified(sec.path, normalizeLF(string(existing)), ""))
 			t.guard.MarkRead(sec.path, nil)
 			changed = append(changed, sec.path+" (删除)")
 		case "update":
@@ -166,13 +170,17 @@ func (t *ApplyPatchTool) Run(ctx context.Context, args json.RawMessage) (Result,
 			if err := t.writeAtomic(sec.path, []byte(updated), existing); err != nil {
 				return failResult("写入失败: " + err.Error())
 			}
+			diffs = append(diffs, diff.Unified(sec.path, normalizeLF(string(existing)), normalizeLF(updated)))
 			changed = append(changed, sec.path+" (更新)")
 		}
 	}
 	// 全部成功后才返回；逐文件原子写，失败的文件已回滚由下一次读后写校验发现。
 	return Result{
 		Output: "已应用补丁: " + strings.Join(changed, ", "), OK: true,
-		Meta:       map[string]string{"sha256": sha256Hex([]byte(strings.Join(changed, "|"))), "files": fmt.Sprint(len(changed))},
+		Meta: map[string]string{
+			"sha256": sha256Hex([]byte(strings.Join(changed, "|"))), "files": fmt.Sprint(len(changed)),
+			"diff": strings.Join(diffs, "\n"),
+		},
 		Provenance: core.ProvObserved,
 	}, nil
 }

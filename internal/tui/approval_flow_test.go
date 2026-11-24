@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/core"
@@ -33,7 +34,7 @@ func TestApprovalFlow(t *testing.T) {
 	default:
 		t.Fatal("no decision sent")
 	}
-	if mm.pending != nil || mm.state != stStreaming {
+	if mm.pending != nil || mm.state != stIdle {
 		t.Fatal("approval not cleared")
 	}
 }
@@ -53,8 +54,59 @@ func TestApprovalHighRiskNeedsYes(t *testing.T) {
 		if d.Allowed {
 			t.Fatal("y must not approve high risk")
 		}
+		t.Fatal("single y should not decide; it is the first letter of yes")
 	default:
-		t.Fatal("y should still produce a deny decision")
+	}
+	if !strings.Contains(m.input.Value(), "y") {
+		t.Fatalf("y should be typed into the composer, got %q", m.input.Value())
+	}
+	_, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	select {
+	case d := <-ask.Resp:
+		if d.Allowed {
+			t.Fatal("esc must deny high risk")
+		}
+	default:
+		t.Fatal("esc should produce a deny decision")
+	}
+}
+
+// 高危审批必须真的能输入 yes 并通过：此前 y 会直接拒绝，导致永远无法批准。
+func TestApprovalHighRiskYesApproves(t *testing.T) {
+	ch := make(chan ApprovalAsk, 1)
+	m := NewModel(Config{Approvals: ch})
+	m.setSize(100, 40)
+	ask := ApprovalAsk{
+		Req:  core.ApprovalRequest{CallID: "c1", Tool: "shell", Command: "rm -rf /", HighRisk: true},
+		Resp: make(chan core.ApprovalDecision, 1),
+	}
+	m.Update(ask)
+	for _, r := range []rune("yes") {
+		m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	select {
+	case d := <-ask.Resp:
+		if !d.Allowed {
+			t.Fatal("typing yes + enter should approve high risk")
+		}
+	default:
+		t.Fatal("no decision sent")
+	}
+}
+
+// outside_read 的 Command 是路径，但 HighRisk=true；卡片必须按显式标记显示高危。
+func TestApprovalOutsideReadUsesExplicitHighRisk(t *testing.T) {
+	ch := make(chan ApprovalAsk, 1)
+	m := NewModel(Config{Approvals: ch})
+	m.setSize(100, 40)
+	m.Update(ApprovalAsk{
+		Req:  core.ApprovalRequest{CallID: "c1", Tool: "outside_read", Command: `C:\Users\dev\notes.txt`, HighRisk: true},
+		Resp: make(chan core.ApprovalDecision, 1),
+	})
+	view := stripANSI.ReplaceAllString(m.View(), "")
+	if !strings.Contains(view, "高危操作") || !strings.Contains(view, "输入 yes") {
+		t.Fatalf("outside_read card not marked high risk:\n%s", view)
 	}
 }
 

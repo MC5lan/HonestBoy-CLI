@@ -99,7 +99,7 @@ func TestModelEventFlow(t *testing.T) {
 	}
 	m.input.SetValue("改个 bug")
 	returned := false
-	m.cfg.Run = func(prompt string) (<-chan core.Event, <-chan error) {
+	m.cfg.Run = func(prompt, sessionID string) (<-chan core.Event, <-chan error) {
 		returned = true
 		ch := make(chan core.Event, 1)
 		errs := make(chan error, 1)

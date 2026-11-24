@@ -32,6 +32,9 @@ type block struct {
 	meta      map[string]string
 	duration  int64
 	ok        bool
+	// Markdown 增量渲染缓存：mdKey 是已渲染的稳定前缀字节数。
+	mdKey int
+	mdOut string
 }
 
 // isMarkdown 判断文本是否含真正的 Markdown 结构，避免把普通文本送进 glamour
@@ -49,31 +52,54 @@ func isMarkdown(s string) bool {
 	return false
 }
 
-func (b *block) Render(r *render.Renderer, width int, th theme.Theme) string {
+// RenderWith 的 verbose 控制工具输出是否展开；失败工具始终展开。
+func (b *block) RenderWith(r *render.Renderer, width int, th theme.Theme, verbose bool) string {
 	if !b.dirty && b.rendered != "" {
 		return b.rendered
 	}
 	var out string
 	switch b.kind {
 	case blkUser:
-		out = th.UserStyle().Render("› " + strings.TrimSpace(b.content))
+		out = th.UserStyle().Render(formatUser(b.content))
 	case blkAssistant:
 		if isMarkdown(b.content) {
-			md, err := r.Render(b.content)
-			if err == nil && md != "" {
-				out = md
+			stable := stableMarkdownPrefix(b.content)
+			if stable == 0 {
+				// 还没有完整段落：先按原文显示，避免每个 delta 都重跑 glamour。
+				out = strings.TrimRight(b.content, "\n")
+				break
+			}
+			if stable != b.mdKey || b.mdOut == "" {
+				if md, err := r.Render(b.content[:stable]); err == nil {
+					b.mdKey, b.mdOut = stable, md
+				}
+			}
+			if b.mdOut != "" {
+				tail := strings.TrimRight(b.content[stable:], "\n")
+				if tail != "" {
+					out = b.mdOut + "\n" + tail
+				} else {
+					out = b.mdOut
+				}
 				break
 			}
 		}
-		// 普通文本：直接输出，不经过 glamour（避免整行 padding）。
 		out = strings.TrimRight(b.content, "\n")
 	case blkTool:
+		expanded := verbose || !b.ok
 		action := core.ToolAction(b.meta["tool"], b.meta["args"])
-		out = render.ToolCard(action, b.meta["args"], b.content, b.ok, b.duration, width, b.collapsed)
+		out = render.ToolCard(action, b.meta["args"], b.content, b.ok, b.duration, width, !expanded)
+		if expanded {
+			if d := b.meta["diff"]; d != "" {
+				out += "\n" + colorDiff(d, th, width)
+			}
+		}
 	case blkNotice:
 		style := th.DimStyle()
 		if b.meta["level"] == "warn" {
 			style = th.WarnStyle()
+		} else if b.meta["level"] == "error" {
+			style = th.DangerStyle()
 		}
 		out = style.Render("! " + b.content)
 	case blkError:
@@ -92,4 +118,63 @@ func (b *block) Render(r *render.Renderer, width int, th theme.Theme) string {
 	b.rendered = out
 	b.dirty = false
 	return out
+}
+
+// stableMarkdownPrefix 返回最后一个完整段落（空行）之前的字节数。
+// 代码块内部不切分，避免把未闭合的 ``` 送去渲染。
+func stableMarkdownPrefix(s string) int {
+	stable := 0
+	inFence := false
+	offset := 0
+	for _, line := range strings.SplitAfter(s, "\n") {
+		t := strings.TrimSpace(line)
+		if strings.HasPrefix(t, "```") {
+			inFence = !inFence
+		}
+		offset += len(line)
+		if t == "" && !inFence {
+			stable = offset
+		}
+	}
+	return stable
+}
+
+func formatUser(s string) string {
+	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
+	var b strings.Builder
+	for i, line := range lines {
+		if i > 0 {
+			b.WriteString("\n  ")
+		} else {
+			b.WriteString("› ")
+		}
+		b.WriteString(line)
+	}
+	return b.String()
+}
+
+// colorDiff 只做前缀着色，不改写验证器/工具产出的原文。
+func colorDiff(d string, th theme.Theme, width int) string {
+	lines := strings.Split(strings.TrimRight(d, "\n"), "\n")
+	const maxLines = 120
+	if len(lines) > maxLines {
+		lines = append(lines[:maxLines], "… 其余 diff 已省略")
+	}
+	var out []string
+	for _, line := range lines {
+		line = render.Truncate(line, width)
+		switch {
+		case strings.HasPrefix(line, "+++"), strings.HasPrefix(line, "---"):
+			out = append(out, th.DimStyle().Render(line))
+		case strings.HasPrefix(line, "+"):
+			out = append(out, th.SuccessStyle().Render(line))
+		case strings.HasPrefix(line, "-"):
+			out = append(out, th.DangerStyle().Render(line))
+		case strings.HasPrefix(line, "@@"):
+			out = append(out, th.AccentStyle().Render(line))
+		default:
+			out = append(out, th.DimStyle().Render(line))
+		}
+	}
+	return strings.Join(out, "\n")
 }

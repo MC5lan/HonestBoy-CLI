@@ -47,7 +47,7 @@ func TestModelSwitch(t *testing.T) {
 		return nil
 	}})
 	m.setSize(100, 34)
-	m.runSlash("/model", "/model deepseek-reasoner")
+	m.runSlash("/model", "/model deepseek-reasoner", []string{"deepseek-reasoner"})
 	if m.cfg.Model != "deepseek-reasoner" || saved != "deepseek-reasoner" {
 		t.Fatalf("model=%q saved=%q", m.cfg.Model, saved)
 	}
@@ -55,7 +55,7 @@ func TestModelSwitch(t *testing.T) {
 		t.Fatalf("hint = %q", m.hint)
 	}
 	// 无参数只提示当前模型
-	m.runSlash("/model", "/model")
+	m.runSlash("/model", "/model", nil)
 	if !strings.Contains(m.hint, "deepseek-reasoner") {
 		t.Fatalf("hint = %q", m.hint)
 	}
@@ -64,11 +64,11 @@ func TestModelSwitch(t *testing.T) {
 func TestConfigAndPathCommands(t *testing.T) {
 	m := NewModel(Config{Model: "m", Theme: "none", Workdir: `C:\work\proj`, Protocol: "anthropic", BaseURL: "https://api.anthropic.com"})
 	m.setSize(100, 34)
-	m.runSlash("/config", "/config")
+	m.runSlash("/config", "/config", nil)
 	if !strings.Contains(m.hint, "anthropic") || !strings.Contains(m.hint, "api.anthropic.com") {
 		t.Fatalf("config hint = %q", m.hint)
 	}
-	m.runSlash("/path", "/path")
+	m.runSlash("/path", "/path", nil)
 	if !strings.Contains(m.hint, `C:\work\proj`) {
 		t.Fatalf("path hint = %q", m.hint)
 	}

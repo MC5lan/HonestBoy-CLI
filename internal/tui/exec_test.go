@@ -31,7 +31,7 @@ func TestHelpToggle(t *testing.T) {
 func TestHelpViaSlash(t *testing.T) {
 	m := NewModel(Config{Theme: "none"})
 	m.setSize(100, 34)
-	m.runSlash("/help", "/help")
+	m.runSlash("/help", "/help", nil)
 	if !m.showHelp {
 		t.Fatal("/help should open help page")
 	}
@@ -53,12 +53,12 @@ func TestOnboardHint(t *testing.T) {
 
 func TestExecCommandInTUI(t *testing.T) {
 	var called string
-	m := NewModel(Config{Theme: "none", Exec: func(cmd string, args []string) (string, error) {
+	m := NewModel(Config{Theme: "none", Exec: func(cmd string, args []string, sessionID string) (string, error) {
 		called = cmd
 		return "链完整", nil
 	}})
 	m.setSize(100, 34)
-	m.runSlash("/verify", "/verify")
+	m.runSlash("/verify", "/verify", nil)
 	if called != "/verify" {
 		t.Fatalf("exec not called: %q", called)
 	}
@@ -74,11 +74,11 @@ func TestExecCommandInTUI(t *testing.T) {
 }
 
 func TestExecCommandError(t *testing.T) {
-	m := NewModel(Config{Theme: "none", Exec: func(string, []string) (string, error) {
+	m := NewModel(Config{Theme: "none", Exec: func(string, []string, string) (string, error) {
 		return "", errors.New("boom")
 	}})
 	m.setSize(100, 34)
-	m.runSlash("/stats", "/stats")
+	m.runSlash("/stats", "/stats", nil)
 	if !strings.Contains(m.hint, "执行失败") {
 		t.Fatalf("hint = %q", m.hint)
 	}
@@ -87,12 +87,12 @@ func TestExecCommandError(t *testing.T) {
 func TestContextAndCompactCommands(t *testing.T) {
 	m := NewModel(Config{Theme: "none", ContextWindow: 1000})
 	m.setSize(100, 34)
-	m.tokensIn, m.tokensOut = 100, 50
-	m.runSlash("/context", "/context")
-	if !strings.Contains(m.hint, "150") || !strings.Contains(m.hint, "1000") {
+	m.promptTokens = 750
+	m.runSlash("/context", "/context", nil)
+	if !strings.Contains(m.hint, "750") || !strings.Contains(m.hint, "1000") {
 		t.Fatalf("context hint = %q", m.hint)
 	}
-	m.runSlash("/compact", "/compact")
+	m.runSlash("/compact", "/compact", nil)
 	if !strings.Contains(m.hint, "压缩") {
 		t.Fatalf("compact hint = %q", m.hint)
 	}

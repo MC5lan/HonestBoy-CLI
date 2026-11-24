@@ -45,6 +45,8 @@ type Config struct {
 	// Rigor 是质量契约等级：normal | strict。
 	Rigor  string
 	Tracer *core.Tracer
+	// ResumeID 非空时续接已有会话（事件与证据链追加到同一文件）。
+	ResumeID string
 }
 
 // ResolveClient 按配置解析模型客户端；显式注入优先。
@@ -168,22 +170,33 @@ func (e *Engine) Run(ctx context.Context, prompt string) (<-chan core.Event, <-c
 		e.out = events
 		e.startTime = time.Now().UTC()
 
-		s := &core.Session{
-			ID:  "s_" + shortID(prompt+time.Now().UTC().Format(time.RFC3339Nano)),
-			Cwd: e.cfg.Workdir, CreatedAt: e.startTime,
+		var s *core.Session
+		if e.cfg.ResumeID != "" {
+			loaded, err := e.store.Open(e.cfg.ResumeID)
+			if err != nil {
+				errs <- err
+				return
+			}
+			s = loaded
+		} else {
+			s = &core.Session{
+				ID:  "s_" + shortID(prompt+time.Now().UTC().Format(time.RFC3339Nano)),
+				Cwd: e.cfg.Workdir, CreatedAt: e.startTime,
+			}
+			if err := e.store.Create(*s); err != nil {
+				errs <- err
+				return
+			}
 		}
 		e.session = s
-		if err := e.store.Create(*s); err != nil {
-			errs <- err
-			return
-		}
 		defer func() { _ = e.store.Unlock() }()
 
 		if e.cfg.AutoCommit {
 			e.prepareUserChanges()
 		}
 
-		terminal, err := e.runTurn(ctx, prompt)
+		history := historyText(s, 16000)
+		terminal, err := e.runTurn(ctx, prompt, history)
 		if err != nil {
 			// 错误必须作为事件发出：TUI 只消费事件流，不读 errs channel。
 			e.emit(core.EvtError, core.ErrorData{

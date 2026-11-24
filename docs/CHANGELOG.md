@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### TUI 交互重构（A+B+C）
+
+- 修复高危审批按键返回 nil model 导致 TUI 崩溃；高危卡与按键统一使用请求里的 `HighRisk`，
+  `outside_read` 不再被画成普通审批。
+- 布局改为实测高度：审批卡、命令面板、多行输入、状态栏不再互相挤掉；80×24 下审批选项与输入框可见；
+  终端高度 < 30 行时横幅收缩为 3 行。
+- 回合生命周期引入 `runID` 与 `draining`：中断后旧事件被丢弃、旧引擎释放会话锁前新任务排队；
+  回合进行中提交自动排队并在结束后发送，`Esc` 清空队列。
+- 对话滚动：PgUp/PgDn、Ctrl+U/D、鼠标滚轮；离开底部时不强制跟随。
+- 工具输出 `Ctrl+O` 展开/折叠；`edit_file` / `write_file` / `apply_patch` 产出统一 diff，展开后按 +/− 着色。
+- 命令面板：`Enter` 执行高亮项（之前执行的是输入原文），需要参数的命令先补全；选中项不会滚出窗口。
+- 多行输入（`Alt+Enter`），输入历史以 JSON 落盘并跨启动恢复。
+- 审批与帮助页里的 `Ctrl+C` 生效；新回合重置上一回合的 `done/GOAL` 状态；射门动画结束回到颠球。
+- 主题贯通：横幅/面板/审批/Markdown 全部走 `theme`，`NO_COLOR` 下 Markdown 使用 `notty`；
+  流式 Markdown 增加已完成段落缓存。
+- 会话：TUI 每回合续接同一 `session_id`，引擎注入上一轮历史；`/sessions` 选择恢复、
+  `/new` 开新会话、`/approve <id>` 在计划所属会话执行。
+- 新增 TUI `/diff` `/undo` `/rewind` `/verbose`；`/context` 改用最近一步提示词估算。
+- 清理骨架占位：`component` 只保留审批卡，删除空 `render.Cache`、未使用的吉祥物字符画与 4 个未调用函数。
+
 ### 诚实机制接线
 - 歧义暂停接入主循环：悬空指代直接 `halt`，不执行工具。
 - 形态观测接入：自我保证/投降表述产生 warn；自我保证仍触发 Gate 加严。

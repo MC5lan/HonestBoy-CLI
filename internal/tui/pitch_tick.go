@@ -1,6 +1,6 @@
 package tui
 
-// pitchFrame 返回当前球场动画帧：射门时用 kickFrame，否则用递减的 pitchTick。
+// pitchFrame 返回当前球场动画帧：射门时用 kickFrame，否则用递增的 pitchTick。
 func (m *Model) pitchFrame() int {
 	if m.kickFrame > 0 {
 		return m.kickFrame

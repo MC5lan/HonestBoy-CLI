@@ -23,8 +23,11 @@ func (r *Renderer) Render(src string) (string, error) {
 	}
 	if r.glam == nil {
 		style := "dark"
-		if r.theme == "light" {
+		switch r.theme {
+		case "light":
 			style = "light"
+		case "none":
+			style = "notty" // NO_COLOR：Markdown 也不能输出颜色码
 		}
 		wrap := r.width - 4
 		if wrap < 10 {

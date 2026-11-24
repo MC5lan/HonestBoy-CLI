@@ -51,6 +51,8 @@ type ToolEndData struct {
 	DurationMS int64
 	Output     string
 	Truncated  bool
+	// Diff 是写操作的统一格式行级差异（只增字段，不影响旧会话回放）。
+	Diff string
 }
 type ToolDeniedData struct{ CallID, Reason string }
 type NoticeData struct{ Level, Text string }
@@ -83,7 +85,12 @@ type DiffReviewData struct {
 	Stat   string
 }
 
-type UsageData struct{ TokensIn, TokensOut, CostMicros int64 }
+type UsageData struct {
+	TokensIn, TokensOut, CostMicros int64
+	// PromptTokens 是最近一步实际发送的提示词 tokens（本轮累计 In 会重复计算历史，
+	// 不能用来表示上下文占用）。旧会话没有该字段时为 0。
+	PromptTokens int64
+}
 type ErrorData struct {
 	Code, Message string
 	Retryable     bool

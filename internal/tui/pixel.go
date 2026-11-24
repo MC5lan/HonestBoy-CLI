@@ -43,7 +43,7 @@ const (
 	pixH     = 12
 )
 
-func renderPixelMascot() []string {
+func renderPixelMascot(color bool) []string {
 	rows := make([]string, pixH/2)
 	for y := 0; y < pixH; y += 2 {
 		var b strings.Builder
@@ -54,17 +54,34 @@ func renderPixelMascot() []string {
 			case top == 0 && bottom == 0:
 				b.WriteByte(' ')
 			case top != 0 && bottom == 0:
-				b.WriteString("\x1b[38;5;" + itoa(pixelPalette[top]) + "m▀" + pixReset)
+				b.WriteString(pixelBlock(top, 0, color))
 			case top == 0 && bottom != 0:
-				b.WriteString("\x1b[38;5;" + itoa(pixelPalette[bottom]) + "m▄" + pixReset)
+				b.WriteString(pixelBlock(0, bottom, color))
 			default:
-				b.WriteString("\x1b[38;5;" + itoa(pixelPalette[top]) +
-					"m\x1b[48;5;" + itoa(pixelPalette[bottom]) + "m▀" + pixReset)
+				b.WriteString(pixelBlock(top, bottom, color))
 			}
 		}
 		rows[y/2] = b.String()
 	}
 	return rows
+}
+
+func pixelBlock(top, bottom rune, color bool) string {
+	glyph := "▀"
+	if top == 0 {
+		glyph = "▄"
+	}
+	if !color {
+		return glyph
+	}
+	if top == 0 {
+		return "\x1b[38;5;" + itoa(pixelPalette[bottom]) + "m" + glyph + pixReset
+	}
+	if bottom == 0 {
+		return "\x1b[38;5;" + itoa(pixelPalette[top]) + "m" + glyph + pixReset
+	}
+	return "\x1b[38;5;" + itoa(pixelPalette[top]) +
+		"m\x1b[48;5;" + itoa(pixelPalette[bottom]) + "m" + glyph + pixReset
 }
 
 const mascotPixelWidth = pixW

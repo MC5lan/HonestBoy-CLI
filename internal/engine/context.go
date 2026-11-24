@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/MC5lan/HonestBoy-CLI/internal/core"
 )
 
 // AssembleContext 按固定顺序装配上下文（T210）：system → HB.md → env → history → input。
@@ -24,6 +26,61 @@ func AssembleContext(system, hb, env, history, input string) string {
 	}
 	parts = append(parts, "## 本轮任务\n"+input)
 	return strings.Join(parts, "\n\n")
+}
+
+// historyText 把已发生的事件压成一段可读对话历史，供下一回合继续。
+// 只保留用户输入、助手文本、工具结果与终态；总长度按 rune 截断。
+func historyText(s *core.Session, maxRunes int) string {
+	if s == nil || len(s.Events) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	var assistant strings.Builder
+	flush := func() {
+		text := strings.TrimSpace(assistant.String())
+		assistant.Reset()
+		if text != "" {
+			fmt.Fprintf(&b, "助手: %s\n", truncateRunes(text, 2000))
+		}
+	}
+	for _, ev := range s.Events {
+		switch ev.Type {
+		case core.EvtTurnStart:
+			flush()
+			if d, ok := ev.Data.(core.TurnStartData); ok && d.Input != "" {
+				fmt.Fprintf(&b, "用户: %s\n", truncateRunes(d.Input, 300))
+			}
+		case core.EvtTextDelta:
+			if d, ok := ev.Data.(core.TextDeltaData); ok {
+				assistant.WriteString(d.Text)
+			}
+		case core.EvtToolEnd:
+			flush()
+			if d, ok := ev.Data.(core.ToolEndData); ok {
+				status := "成功"
+				if !d.OK {
+					status = "失败"
+				}
+				fmt.Fprintf(&b, "工具(%s): %s\n", status,
+					truncateRunes(strings.ReplaceAll(d.Output, "\n", " "), 160))
+			}
+		case core.EvtGateDeny:
+			if d, ok := ev.Data.(core.GateDenyData); ok {
+				fmt.Fprintf(&b, "Gate 拒绝: %s\n", truncateRunes(d.Reason, 200))
+			}
+		case core.EvtTurnEnd:
+			flush()
+			if d, ok := ev.Data.(core.TurnEndData); ok {
+				fmt.Fprintf(&b, "结果: %s\n", d.Terminal)
+			}
+		}
+	}
+	flush()
+	text := strings.TrimSpace(b.String())
+	if r := []rune(text); len(r) > maxRunes {
+		text = "…（较早历史已省略）\n" + string(r[len(r)-maxRunes:])
+	}
+	return text
 }
 
 // LoadProjectContext 读取工作区的 HB.md / AGENTS.md，超限时截断并标注。

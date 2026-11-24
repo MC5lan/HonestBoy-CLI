@@ -16,14 +16,14 @@ func TestUnmarshalEventRoundTrip(t *testing.T) {
 		{"tool_request", EvtToolRequest, ToolRequestData{CallID: "c", Tool: "t", Args: "{}"}},
 		{"approval", EvtApprovalNeeded, ApprovalData{CallID: "c", Risk: "high"}},
 		{"tool_start", EvtToolStart, ToolStartData{CallID: "c"}},
-		{"tool_end", EvtToolEnd, ToolEndData{CallID: "c", OK: true, ExitCode: 0}},
+		{"tool_end", EvtToolEnd, ToolEndData{CallID: "c", OK: true, ExitCode: 0, Diff: "--- a\n+++ b\n-old\n+new\n"}},
 		{"tool_denied", EvtToolDenied, ToolDeniedData{CallID: "c", Reason: "no"}},
 		{"notice", EvtNotice, NoticeData{Level: "warn", Text: "x"}},
 		{"gate_allow", EvtGateAllow, GateAllowData{ClaimID: "cl", EvidenceIDs: []string{"e1"}}},
 		{"gate_deny", EvtGateDeny, GateDenyData{ClaimID: "cl", Rule: "coverage", Missing: []string{"test"}}},
 		{"abstain", EvtAbstain, AbstainData{Reason: "r", NotDone: []string{"x"}}},
 		{"turn_end", EvtTurnEnd, TurnEndData{Terminal: "done", TokensIn: 1}},
-		{"usage", EvtUsage, UsageData{TokensIn: 1, TokensOut: 2}},
+		{"usage", EvtUsage, UsageData{TokensIn: 1, TokensOut: 2, PromptTokens: 3}},
 		{"error", EvtError, ErrorData{Code: "E", Message: "m"}},
 	}
 	s := &Session{ID: "s"}
