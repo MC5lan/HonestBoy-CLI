@@ -1,4 +1,4 @@
-# 发布清单（v0.1.0）
+# 发布清单（v0.1.x）
 
 发布前必须全绿：
 
@@ -92,3 +92,11 @@ Windows 下旧文件先改名为 `hb.exe.old`，下次启动自动清理。
 - ~~winget/scoop 的 SHA256 仍为占位符。~~ 已按真实 checksums 回填；本机无 winget/scoop 命令，安装未实测。
 - `hb upgrade --check` 对真实 release 通过；完整 `upgrade` 因本机到 GitHub 资产链路约 19KB/s、2 分钟超时而失败（D13）。
 - 本机未跑 `-race`（无 gcc）；CI run `45355568756` 已覆盖并通过。
+
+## 2026-11-24 v0.1.1 发布记录
+
+- 修复 D13：默认 15 分钟、`--timeout`、网络/429/5xx 重试 3 次、TTY 进度。
+- `v0.1.1` 已发布：https://github.com/MC5lan/HonestBoy-CLI/releases/tag/v0.1.1
+- 线上三个 zip + `checksums.txt` 已核对；winget/scoop 已更新到 0.1.1 并回填真实哈希。
+- 用修复后的二进制对真实 GitHub `v0.1.1` 完成下载 → SHA256 → 替换 → 版本确认。
+- 仍未完成：本机无 winget/scoop，安装/卸载未实测；Linux/arm64 未真机运行。

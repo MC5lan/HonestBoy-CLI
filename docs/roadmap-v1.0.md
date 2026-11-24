@@ -25,9 +25,9 @@
 
 - [x] 修 `hb upgrade`：默认 15 分钟、`--timeout` 可配置、TTY 进度、失败重试 3 次 (M)
 - [x] 用真实 GitHub Release 完整跑一次 `hb upgrade`，下载/SHA256/替换/版本确认通过 (S)
-- [ ] 将无吉祥物 TUI + 升级修复发布为 `v0.1.1`，重生成 checksums 并回填 winget/scoop (S)
+- [x] 将无吉祥物 TUI + 升级修复发布为 `v0.1.1`，重生成 checksums 并回填 winget/scoop (S)
 - [ ] 干净环境验证 winget / scoop 安装、运行、卸载；记录残留 (M)
-- [ ] 更新 D05/D06/D13 状态与 `docs/release-checklist.md` (S)
+- [x] 更新 D05/D06/D13 状态与 `docs/release-checklist.md` (S)
 
 验收：`hb upgrade --check` 与完整升级都通过；包管理器安装可用；`v0.1.1` 资产哈希与清单一致。
 
