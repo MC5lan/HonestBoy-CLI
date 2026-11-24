@@ -20,11 +20,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.denyPending("被新的审批请求覆盖")
 		}
 		m.pending = &msg
+		m.approvalAt = time.Now()
 		m.state = stApproving
 		m.showHelp = false
 		m.showSessions = false
 		m.input.SetValue("")
 		m.input.SetHeight(1)
+		if msg.Req.HighRisk {
+			m.input.Focus()
+		} else {
+			m.input.Blur() // 普通审批只认 y/a/n/esc
+		}
 		m.hint = ""
 		m.refreshView()
 		return m, waitForApproval(m.cfg.Approvals)
@@ -128,6 +134,18 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// 大段粘贴折叠，提交时再还原；审批态不折叠，避免影响 yes 输入。
+	if msg.Paste && m.pending == nil {
+		text := string(msg.Runes)
+		if len(text) > 5*1024 {
+			m.pasteText = text
+			m.pasteToken = fmt.Sprintf("[粘贴 %.1fKB]", float64(len(text))/1024)
+			m.input.InsertString(m.pasteToken)
+			m.resizeComposer()
+			return m, nil
+		}
+	}
+
 	switch key {
 	case "pgup":
 		m.view.PageUp()
@@ -137,6 +155,15 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.view.PageDown()
 		m.follow = m.view.AtBottom()
 		return m, nil
+	case "ctrl+home":
+		m.view.GotoTop()
+		m.follow = false
+		return m, nil
+	case "ctrl+end":
+		m.view.GotoBottom()
+		m.follow = true
+		m.newBelow = false
+		return m, nil
 	case "ctrl+u":
 		m.view.HalfPageUp()
 		m.follow = m.view.AtBottom()
@@ -145,6 +172,8 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.view.HalfPageDown()
 		m.follow = m.view.AtBottom()
 		return m, nil
+	case "ctrl+r":
+		return m, m.replayCurrent()
 	case "ctrl+o":
 		m.verboseTools = !m.verboseTools
 		m.markToolsDirty()
@@ -168,7 +197,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, m.submitPalette()
 		}
 		return m, m.submit()
-	case "alt+enter":
+	case "alt+enter", "shift+enter":
 		m.input.InsertString("\n")
 		m.resizeComposer()
 		return m, nil
@@ -227,6 +256,8 @@ func (m *Model) onStreamClosed(runID uint64) tea.Cmd {
 	m.state = stIdle
 	// 引擎已结束，未回答的审批不会再有人消费，直接收起卡片。
 	m.pending = nil
+	m.approvalAt = time.Time{}
+	m.input.Focus()
 	if errs != nil {
 		select {
 		case err, ok := <-errs:
@@ -380,6 +411,9 @@ func (m *Model) applyEvent(ev core.Event) {
 	case core.EvtGateAllow:
 		m.turnGateAllow++
 		m.sessGateAllow++
+		if d, ok := ev.Data.(core.GateAllowData); ok {
+			m.turnEvidence += len(d.EvidenceIDs)
+		}
 		m.blocks = append(m.blocks, block{kind: blkGateAllow, dirty: true})
 		m.refreshView()
 	case core.EvtGateDeny:

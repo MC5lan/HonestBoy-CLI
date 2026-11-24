@@ -63,7 +63,7 @@ func (m *Model) layout() Layout {
 	}
 	approval := 0
 	if m.pending != nil {
-		approval = strings.Count(m.approvalCard().Render(m.width-2, m.th.Warn), "\n") + 1
+		approval = strings.Count(m.approvalCard().Render(m.width-2, m.approvalBorder()), "\n") + 1
 	}
 	palette := 0
 	if m.slashPanelVisible() {

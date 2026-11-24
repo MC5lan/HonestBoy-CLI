@@ -466,6 +466,92 @@ func TestStableMarkdownPrefix(t *testing.T) {
 	}
 }
 
+// 大段粘贴折叠为占位符，提交时还原完整内容。
+func TestLargePasteFoldsAndRestores(t *testing.T) {
+	var got string
+	m := NewModel(Config{Theme: "none", Run: func(prompt, sessionID string) (<-chan core.Event, <-chan error) {
+		got = prompt
+		return make(chan core.Event), make(chan error)
+	}})
+	m.setSize(100, 40)
+	big := strings.Repeat("a", 6000)
+	m.Update(tea.KeyMsg{Paste: true, Runes: []rune(big)})
+	if !strings.Contains(m.input.Value(), "[粘贴") {
+		t.Fatalf("paste not folded: %q", m.input.Value())
+	}
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if got != big {
+		t.Fatalf("submitted paste length = %d, want %d", len(got), len(big))
+	}
+}
+
+// Ctrl+R 只读重放当前会话。
+func TestCtrlRReplaysCurrentSession(t *testing.T) {
+	m := NewModel(Config{Theme: "none", SessionID: "s_replay", ResumeSession: func(id string) ([]core.Event, error) {
+		return []core.Event{{Type: core.EvtTurnStart, Data: core.TurnStartData{Input: "重放任务"}}}, nil
+	}})
+	m.setSize(100, 40)
+	m.Update(tea.KeyMsg{Type: tea.KeyCtrlR})
+	found := false
+	for _, b := range m.blocks {
+		if b.content == "重放任务" {
+			found = true
+		}
+	}
+	if !found || !strings.Contains(m.hint, "重放") {
+		t.Fatalf("replay missing: blocks=%d hint=%q", len(m.blocks), m.hint)
+	}
+}
+
+// Ctrl+Home / Ctrl+End 跳到顶/底。
+func TestCtrlHomeEndScroll(t *testing.T) {
+	m := NewModel(Config{Theme: "none", Model: "m", Workdir: "p"})
+	m.setSize(80, 24)
+	for i := 1; i <= 60; i++ {
+		m.applyEvent(core.Event{Type: core.EvtNotice, Data: core.NoticeData{Level: "info", Text: fmt.Sprintf("第%02d条", i)}})
+	}
+	_ = m.View()
+	m.Update(tea.KeyMsg{Type: tea.KeyCtrlHome})
+	if !m.view.AtTop() {
+		t.Fatal("ctrl+home did not reach top")
+	}
+	m.Update(tea.KeyMsg{Type: tea.KeyCtrlEnd})
+	if !m.view.AtBottom() {
+		t.Fatal("ctrl+end did not reach bottom")
+	}
+}
+
+// 普通审批禁用输入；高危审批必须保留 yes 输入；结束后恢复焦点。
+func TestApprovalFocusPolicy(t *testing.T) {
+	m := NewModel(Config{Theme: "none"})
+	m.setSize(100, 40)
+	m.Update(ApprovalAsk{Req: core.ApprovalRequest{Command: "go test ./..."}, Resp: make(chan core.ApprovalDecision, 1)})
+	if m.input.Focused() {
+		t.Fatal("normal approval input should be blurred")
+	}
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	if !m.input.Focused() {
+		t.Fatal("input should regain focus after approval")
+	}
+
+	m.Update(ApprovalAsk{Req: core.ApprovalRequest{Command: "rm -rf /", HighRisk: true}, Resp: make(chan core.ApprovalDecision, 1)})
+	if !m.input.Focused() {
+		t.Fatal("high-risk approval needs focused input for yes")
+	}
+}
+
+// 状态栏显示本轮证据数与会话 ID。
+func TestStatusBarShowsEvidenceAndSession(t *testing.T) {
+	m := NewModel(Config{Theme: "none", Model: "m", Workdir: "p"})
+	m.setSize(110, 40)
+	m.sessionID = "s_0123456789abcdef"
+	m.applyEvent(core.Event{Type: core.EvtGateAllow, Data: core.GateAllowData{EvidenceIDs: []string{"e1", "e2"}}})
+	view := stripANSI.ReplaceAllString(m.View(), "")
+	if !strings.Contains(view, "证据 2") || !strings.Contains(view, "会话 s_01234567") {
+		t.Fatalf("status bar missing evidence/session:\n%s", view)
+	}
+}
+
 // 回合必须把当前会话 ID 传给引擎，才能续接上下文。
 func TestRunReceivesSessionID(t *testing.T) {
 	var got string

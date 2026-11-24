@@ -83,10 +83,12 @@ type Model struct {
 
 	spinnerIdx int
 
-	run      *runState
-	runID    uint64
-	queue    []string
-	draining int
+	run        *runState
+	runID      uint64
+	queue      []string
+	draining   int
+	pasteText  string
+	pasteToken string
 
 	hint       string
 	err        error
@@ -108,6 +110,8 @@ type Model struct {
 	turnToolsFail int
 	turnGateAllow int
 	turnGateDeny  int
+	turnEvidence  int
+	approvalAt    time.Time
 	sessToolsOK   int
 	sessToolsFail int
 	sessGateAllow int
@@ -158,7 +162,7 @@ func (m *Model) busy() bool {
 
 // submit 处理一次回车：斜杠命令立即执行；普通任务在忙碌时进入队列。
 func (m *Model) submit() tea.Cmd {
-	prompt := strings.TrimSpace(m.input.Value())
+	prompt := strings.TrimSpace(m.expandPaste(m.input.Value()))
 	if prompt == "" {
 		return nil
 	}
@@ -214,6 +218,49 @@ func (m *Model) startPrompt(prompt string) tea.Cmd {
 	return tea.Batch(waitForEvent(m.runID, events), spinnerTick())
 }
 
+func (m *Model) expandPaste(s string) string {
+	if m.pasteToken != "" && strings.Contains(s, m.pasteToken) {
+		s = strings.ReplaceAll(s, m.pasteToken, m.pasteText)
+	}
+	m.pasteText, m.pasteToken = "", ""
+	return s
+}
+
+// replayCurrent 只读重放当前会话，不启动模型、不写入会话。
+func (m *Model) replayCurrent() tea.Cmd {
+	if m.busy() {
+		m.hint = "执行中不能重放；先 Esc 中断"
+		return nil
+	}
+	if m.sessionID == "" {
+		m.hint = "当前还没有会话可重放"
+		return nil
+	}
+	if m.cfg.ResumeSession == nil {
+		m.hint = "宿主未注入会话重放能力"
+		return nil
+	}
+	events, err := m.cfg.ResumeSession(m.sessionID)
+	if err != nil {
+		m.hint = "重放失败: " + err.Error()
+		return nil
+	}
+	m.blocks = nil
+	m.term = ""
+	m.err = nil
+	m.showHelp = false
+	m.showSessions = false
+	m.resetTurnStats()
+	m.resetSessionStats()
+	for _, ev := range events {
+		m.applyEvent(ev)
+	}
+	m.follow = true
+	m.hint = "已只读重放当前会话（未写入磁盘）"
+	m.refreshView()
+	return nil
+}
+
 func (m *Model) remember(prompt string) {
 	if n := len(m.history); n == 0 || m.history[n-1] != prompt {
 		m.history = append(m.history, prompt)
@@ -261,6 +308,7 @@ func (m *Model) runSlash(name, line string, args []string) tea.Cmd {
 		m.blocks = nil
 		m.term = ""
 		m.err = nil
+		m.pasteText, m.pasteToken = "", ""
 		m.hint = "已清空当前会话显示（会话记录仍在磁盘）"
 	case "/new":
 		if m.busy() {
@@ -271,6 +319,7 @@ func (m *Model) runSlash(name, line string, args []string) tea.Cmd {
 		m.sessionID = ""
 		m.term = ""
 		m.err = nil
+		m.pasteText, m.pasteToken = "", ""
 		m.resetTurnStats()
 		m.resetSessionStats()
 		m.hint = "已开始新会话；下一次输入会创建新的会话文件"
@@ -469,6 +518,7 @@ func (m *Model) setSize(w, h int) {
 func (m *Model) resetTurnStats() {
 	m.turnToolsOK, m.turnToolsFail = 0, 0
 	m.turnGateAllow, m.turnGateDeny = 0, 0
+	m.turnEvidence = 0
 	m.obsRule, m.obsReason = "", ""
 }
 

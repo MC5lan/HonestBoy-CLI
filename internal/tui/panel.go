@@ -58,6 +58,7 @@ func (m *Model) renderPanel(width int) string {
 	lines = append(lines, head("── 本轮 ──"))
 	lines = append(lines, line("工具✓", fmt.Sprint(s.toolsOK)), line("工具✗", fmt.Sprint(s.toolsFail)))
 	lines = append(lines, line("Gate✓", fmt.Sprint(s.gateAllow)), line("Gate✗", fmt.Sprint(s.gateDeny)))
+	lines = append(lines, line("证据", fmt.Sprint(m.turnEvidence)))
 	lines = append(lines, line("token", fmt.Sprintf("%d/%d", m.tokensIn, m.tokensOut)))
 	lines = append(lines, "")
 	lines = append(lines, head("── 会话 ──"))

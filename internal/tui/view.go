@@ -47,6 +47,14 @@ func dirName(p string) string {
 	return p
 }
 
+func shortSessionID(id string) string {
+	r := []rune(id)
+	if len(r) <= 10 {
+		return id
+	}
+	return string(r[:10])
+}
+
 func shortCwd(p string) string {
 	r := []rune(p)
 	if len(r) > 20 {
@@ -93,7 +101,7 @@ func (m *Model) View() string {
 	}
 
 	if m.pending != nil {
-		parts = append(parts, m.approvalCard().Render(m.width-2, m.th.Warn))
+		parts = append(parts, m.approvalCard().Render(m.width-2, m.approvalBorder()))
 	}
 	if l.HintHeight > 0 {
 		parts = append(parts, m.hintLine())
@@ -221,6 +229,12 @@ func (m *Model) statusBar() string {
 		left += fmt.Sprintf(" · 上下文 ~%d%%", m.contextPercent())
 		if m.term != "" {
 			left += fmt.Sprintf(" · %s", core.TerminalLabel(m.term.String()))
+		}
+	}
+	if m.width >= 92 {
+		left += fmt.Sprintf(" · 证据 %d", m.turnEvidence)
+		if m.sessionID != "" {
+			left += " · 会话 " + shortSessionID(m.sessionID)
 		}
 	}
 	if len(m.queue) > 0 {

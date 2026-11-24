@@ -89,10 +89,12 @@ hb                                 # TUI（需要 TTY）
 | 快捷键 | 行为 |
 |---|---|
 | `Enter` | 提交任务；命令面板中执行高亮项 |
-| `Alt+Enter` | 输入换行 |
+| `Shift+Enter / Alt+Enter` | 输入换行 |
 | `Ctrl+C` | 中断当前回合；空闲时退出 |
 | `Ctrl+L` | 清屏 |
 | `Ctrl+O` | 展开/折叠工具输出 |
+| `Ctrl+R` | 只读重放当前会话 |
+| `Ctrl+Home / Ctrl+End` | 对话区到顶/到底 |
 | `Ctrl+U / Ctrl+D` | 对话区上/下半页 |
 | `PgUp / PgDn` | 对话区翻页（滚轮同效） |
 | `Esc` | 中断并清空队列 / 关闭提示 |

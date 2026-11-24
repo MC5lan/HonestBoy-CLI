@@ -15,10 +15,12 @@ type keyBinding struct {
 
 var keyBindings = []keyBinding{
 	{"Enter", "提交任务或执行命令；命令面板中执行高亮项"},
-	{"Alt+Enter", "输入换行（多行任务）"},
+	{"Shift+Enter / Alt+Enter", "输入换行（多行任务）"},
 	{"Ctrl+C", "中断当前回合（空闲时退出）；审批/帮助页同样生效"},
 	{"Ctrl+L", "清空对话显示"},
 	{"Ctrl+O", "展开/折叠工具输出"},
+	{"Ctrl+R", "只读重放当前会话"},
+	{"Ctrl+Home / Ctrl+End", "对话区到顶/到底"},
 	{"Ctrl+U / Ctrl+D", "对话区上/下半页"},
 	{"PgUp / PgDn", "对话区翻页（滚轮同效）"},
 	{"Esc", "忙碌时中断并清空队列；空闲时关闭面板/提示"},

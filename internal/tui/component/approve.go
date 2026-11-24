@@ -2,6 +2,7 @@ package component
 
 import (
 	"strings"
+	"time"
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/core"
 	"github.com/charmbracelet/lipgloss"
@@ -15,6 +16,7 @@ type Approve struct {
 	Command  string
 	Risk     string
 	HighRisk bool
+	Waited   time.Duration
 }
 
 func (a *Approve) Render(width int, border lipgloss.Color) string {
@@ -52,7 +54,11 @@ func (a *Approve) Render(width int, border lipgloss.Color) string {
 		contentWidth = 12
 	}
 	cmdLines := wrapText(a.Command, contentWidth, 5)
-	body := []string{title, "工具: " + tool + " · 风险: " + risk, ""}
+	body := []string{title, "工具: " + tool + " · 风险: " + risk}
+	if a.Waited >= time.Second {
+		body = append(body, "已等待 "+a.Waited.Truncate(time.Second).String())
+	}
+	body = append(body, "")
 	for i, line := range cmdLines {
 		if i == 0 {
 			body = append(body, "> "+line)

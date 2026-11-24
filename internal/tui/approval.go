@@ -2,10 +2,12 @@ package tui
 
 import (
 	"strings"
+	"time"
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/core"
 	"github.com/MC5lan/HonestBoy-CLI/internal/tui/component"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // ApprovalAsk 是引擎发来的审批请求；Resp 用于回填用户决定。
@@ -35,9 +37,22 @@ func (m *Model) approvalCard() *component.Approve {
 		return nil
 	}
 	req := m.pending.Req
+	waited := time.Duration(0)
+	if !m.approvalAt.IsZero() {
+		waited = time.Since(m.approvalAt)
+	}
 	return &component.Approve{
 		Tool: req.Tool, Command: req.Command, Risk: req.Risk, HighRisk: req.HighRisk,
+		Waited: waited,
 	}
+}
+
+// approvalBorder 高危用红色，普通用警告色。
+func (m *Model) approvalBorder() lipgloss.Color {
+	if m.pending != nil && m.pending.Req.HighRisk {
+		return m.th.Danger
+	}
+	return m.th.Warn
 }
 
 // handleApprovalKey 处理审批状态下的一次按键；返回 handled=false 时交给输入框。
@@ -76,9 +91,8 @@ func (m *Model) handleApprovalKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 	case "n", "esc":
 		return m.respondApproval(false, false), true
 	}
-	var cmd tea.Cmd
-	m.input, cmd = m.input.Update(msg)
-	return cmd, true
+	// 普通审批不接收正文输入，避免“边审批边打字”。
+	return nil, true
 }
 
 func (m *Model) denyPending(reason string) {
@@ -90,7 +104,9 @@ func (m *Model) denyPending(reason string) {
 	default:
 	}
 	m.pending = nil
+	m.approvalAt = time.Time{}
 	m.input.SetValue("")
+	m.input.Focus()
 	if m.run != nil {
 		m.state = stStreaming
 	} else {
@@ -113,7 +129,9 @@ func (m *Model) respondApproval(allowed, all bool) tea.Cmd {
 	default:
 	}
 	m.pending = nil
+	m.approvalAt = time.Time{}
 	m.input.SetValue("")
+	m.input.Focus()
 	if m.run != nil {
 		m.state = stStreaming
 	} else {
