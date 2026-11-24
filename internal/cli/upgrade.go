@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,9 +19,13 @@ import (
 )
 
 const (
-	releaseAPI  = "https://api.github.com/repos/MC5lan/HonestBoy-CLI/releases/latest"
-	downloadTTL = 2 * time.Minute
+	releaseAPI = "https://api.github.com/repos/MC5lan/HonestBoy-CLI/releases/latest"
+	// 慢网络下 6.8MB 资产可能超过 5 分钟；默认给 15 分钟，并可用 --timeout 覆盖。
+	defaultUpgradeTimeout = 15 * time.Minute
+	upgradeAttempts       = 3
 )
+
+var upgradeRetryBase = time.Second
 
 type releaseAsset struct {
 	Name string `json:"name"`
@@ -38,6 +43,12 @@ func RunUpgrade(opts GlobalOptions, args []string) error {
 	var checkOnly, force bool
 	api := releaseAPI
 	dest := ""
+	timeout := defaultUpgradeTimeout
+	if opts.Timeout != "" {
+		if d, err := time.ParseDuration(opts.Timeout); err == nil && d > 0 {
+			timeout = d
+		}
+	}
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--check":
@@ -56,6 +67,16 @@ func RunUpgrade(opts GlobalOptions, args []string) error {
 			} else {
 				return ErrUsage
 			}
+		case "--timeout":
+			if v, ok := takeValue(args, &i); ok {
+				d, err := time.ParseDuration(v)
+				if err != nil || d <= 0 {
+					return ErrUsage
+				}
+				timeout = d
+			} else {
+				return ErrUsage
+			}
 		default:
 			return ErrUsage
 		}
@@ -68,7 +89,7 @@ func RunUpgrade(opts GlobalOptions, args []string) error {
 		dest = exe
 	}
 
-	rel, err := fetchRelease(api)
+	rel, err := fetchRelease(api, timeout)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrEnvironment, err)
 	}
@@ -102,7 +123,7 @@ func RunUpgrade(opts GlobalOptions, args []string) error {
 	}
 
 	fmt.Fprintln(os.Stdout, "下载校验和…")
-	sums, err := httpGet(sumsURL)
+	sums, err := httpGet(sumsURL, timeout)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrEnvironment, err)
 	}
@@ -111,7 +132,7 @@ func RunUpgrade(opts GlobalOptions, args []string) error {
 		return fmt.Errorf("%w: %v", ErrEnvironment, err)
 	}
 	fmt.Fprintln(os.Stdout, "下载 "+assetName+"…")
-	archive, err := httpGet(assetURL)
+	archive, err := httpGetProgress(assetURL, timeout, "下载 "+assetName, !opts.Quiet && stderrIsTTY())
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrEnvironment, err)
 	}
@@ -130,8 +151,8 @@ func RunUpgrade(opts GlobalOptions, args []string) error {
 	return nil
 }
 
-func fetchRelease(api string) (releaseInfo, error) {
-	raw, err := httpGet(api)
+func fetchRelease(api string, timeout time.Duration) (releaseInfo, error) {
+	raw, err := httpGet(api, timeout)
 	if err != nil {
 		return releaseInfo{}, err
 	}
@@ -145,8 +166,48 @@ func fetchRelease(api string) (releaseInfo, error) {
 	return rel, nil
 }
 
-func httpGet(url string) ([]byte, error) {
-	client := &http.Client{Timeout: downloadTTL}
+type httpStatusError struct {
+	url    string
+	status int
+}
+
+func (e *httpStatusError) Error() string {
+	return fmt.Sprintf("GET %s: HTTP %d", e.url, e.status)
+}
+
+// httpGet 带重试，默认 15 分钟超时；http 状态 4xx 不重试，429/5xx 与网络错误重试。
+func httpGet(url string, timeout time.Duration) ([]byte, error) {
+	return httpGetProgress(url, timeout, "", false)
+}
+
+func httpGetProgress(url string, timeout time.Duration, label string, showProgress bool) ([]byte, error) {
+	var lastErr error
+	for attempt := 1; attempt <= upgradeAttempts; attempt++ {
+		body, err := httpGetOnce(url, timeout, label, showProgress)
+		if err == nil {
+			return body, nil
+		}
+		lastErr = err
+		if !retryableUpgradeError(err) || attempt == upgradeAttempts {
+			break
+		}
+		wait := upgradeRetryBase * time.Duration(1<<(attempt-1))
+		fmt.Fprintf(os.Stderr, "下载失败（第 %d/%d 次）：%v；%s 后重试…\n", attempt, upgradeAttempts, err, wait)
+		time.Sleep(wait)
+	}
+	return nil, lastErr
+}
+
+func retryableUpgradeError(err error) bool {
+	var se *httpStatusError
+	if errors.As(err, &se) {
+		return se.status == http.StatusTooManyRequests || se.status >= 500
+	}
+	return true // 网络错误、超时、EOF
+}
+
+func httpGetOnce(url string, timeout time.Duration, label string, showProgress bool) ([]byte, error) {
+	client := &http.Client{Timeout: timeout}
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -161,9 +222,69 @@ func httpGet(url string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GET %s: HTTP %d", url, resp.StatusCode)
+		return nil, &httpStatusError{url: url, status: resp.StatusCode}
 	}
-	return io.ReadAll(io.LimitReader(resp.Body, 128<<20))
+	body := io.LimitReader(resp.Body, 128<<20)
+	if !showProgress || label == "" {
+		return io.ReadAll(body)
+	}
+	return readWithProgress(body, resp.ContentLength, label)
+}
+
+func readWithProgress(r io.Reader, total int64, label string) ([]byte, error) {
+	var buf bytes.Buffer
+	chunk := make([]byte, 32*1024)
+	var done int64
+	lastPrint := time.Time{}
+	for {
+		n, err := r.Read(chunk)
+		if n > 0 {
+			buf.Write(chunk[:n])
+			done += int64(n)
+			if total > 0 && done > total {
+				done = total
+			}
+			if time.Since(lastPrint) >= 100*time.Millisecond || (total > 0 && done == total) {
+				printDownloadProgress(label, done, total)
+				lastPrint = time.Now()
+			}
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr)
+			return nil, err
+		}
+	}
+	fmt.Fprintln(os.Stderr)
+	return buf.Bytes(), nil
+}
+
+func printDownloadProgress(label string, done, total int64) {
+	if total > 0 {
+		fmt.Fprintf(os.Stderr, "\r%s %s / %s (%d%%)", label, humanBytes(done), humanBytes(total), done*100/total)
+		return
+	}
+	fmt.Fprintf(os.Stderr, "\r%s %s", label, humanBytes(done))
+}
+
+func humanBytes(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for m := n / unit; m >= unit; m /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
+}
+
+func stderrIsTTY() bool {
+	info, err := os.Stderr.Stat()
+	return err == nil && (info.Mode()&os.ModeCharDevice) != 0
 }
 
 func findChecksum(sums, asset string) (string, error) {

@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func makeZip(t *testing.T, name string, data []byte) []byte {
@@ -156,6 +157,64 @@ func TestUpgradeAlreadyLatest(t *testing.T) {
 	got, _ := os.ReadFile(dest)
 	if string(got) != "old" {
 		t.Fatalf("same version must not replace, got %q", got)
+	}
+}
+
+// 资产偶发 5xx 时必须重试，最终仍完成校验与替换。
+func TestUpgradeRetriesTransientAsset(t *testing.T) {
+	newBin := []byte("new-after-retry")
+	zipData := makeZip(t, "hb.exe", newBin)
+	sum := sha256.Sum256(zipData)
+	assetName := fmt.Sprintf("hb_9.9.9_%s_%s.zip", runtime.GOOS, runtime.GOARCH)
+	attempts := 0
+	mux := http.NewServeMux()
+	var srv *httptest.Server
+	mux.HandleFunc("/latest", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"tag_name": "v9.9.9",
+			"assets": []map[string]string{
+				{"name": assetName, "browser_download_url": srv.URL + "/asset.zip"},
+				{"name": "checksums.txt", "browser_download_url": srv.URL + "/checksums.txt"},
+			},
+		})
+	})
+	mux.HandleFunc("/checksums.txt", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "%s  %s\n", hex.EncodeToString(sum[:]), assetName)
+	})
+	mux.HandleFunc("/asset.zip", func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		if attempts < 3 {
+			http.Error(w, "temporary", http.StatusBadGateway)
+			return
+		}
+		_, _ = w.Write(zipData)
+	})
+	srv = httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	oldDelay := upgradeRetryBase
+	upgradeRetryBase = 5 * time.Millisecond
+	t.Cleanup(func() { upgradeRetryBase = oldDelay })
+	oldVersion := Version
+	Version = "1.0.0"
+	t.Cleanup(func() { Version = oldVersion })
+
+	dest := filepath.Join(t.TempDir(), "hb.exe")
+	if err := os.WriteFile(dest, []byte("old"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := RunUpgrade(GlobalOptions{}, []string{"--api", srv.URL + "/latest", "--dest", dest}); err != nil {
+		t.Fatal(err)
+	}
+	if attempts != 3 {
+		t.Fatalf("asset attempts = %d, want 3", attempts)
+	}
+	got, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, newBin) {
+		t.Fatalf("dest = %q", got)
 	}
 }
 

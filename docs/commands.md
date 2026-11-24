@@ -17,7 +17,7 @@
 | `hb explain <code>` | 查询错误码 | 否 |
 | `hb gc [--yes]` | 清理超过 90 天的会话与超过 14 天的日志；默认预演 | 否 |
 | `hb export <id> [--redact]` | 导出会话 jsonl；`--redact` 用统一脱敏规则 | 否 |
-| `hb upgrade [--check]` | 检查并安装最新 release（SHA256 校验，`--check` 只检查） | 否 |
+| `hb upgrade [--check] [--force] [--timeout <dur>]` | 检查并安装最新 release（SHA256 校验；`--check` 只检查；默认 15 分钟超时，失败自动重试） | 否 |
 | `hb undo` | 撤销最近一次自动提交（保留文件改动） | 否 |
 | `hb diff` | 查看当前工作区 diff | 否 |
 | `hb approve <id>` | 批准计划并执行（先 `hb run --plan`） | 否 |

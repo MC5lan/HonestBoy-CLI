@@ -28,7 +28,7 @@ func PrintHelp(w io.Writer) {
   hb rewind restore <id> 恢复代码到检查点
   hb gc [--yes]          清理过期会话(>90天)与日志(>14天)，默认预演
   hb export <id> [--redact] 导出会话 jsonl（可脱敏）
-  hb upgrade [--check]   下载并校验最新版本（--check 只检查）
+  hb upgrade [--check] [--force] [--timeout <dur>]  下载并校验最新版本
   hb explain <code>     查询错误码（如 HB-NET-001）
   hb help               帮助
 
