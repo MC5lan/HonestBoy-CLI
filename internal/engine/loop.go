@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/core"
@@ -291,7 +292,8 @@ steps:
 
 		var toolResults []llm.Message
 		stop := false
-		for _, call := range calls {
+		prefetched := e.prefetchReadOnly(ctx, calls)
+		for idx, call := range calls {
 			toolCalls++
 			if halt, reason := e.guard.Check(e.ledger, toolCalls, turn.ID); halt {
 				e.emit(core.EvtNotice, core.NoticeData{Level: "error", Text: reason})
@@ -452,9 +454,18 @@ steps:
 				}
 				e.emit(core.EvtToolStart, core.ToolStartData{CallID: call.ID})
 				started := time.Now()
-				r, runErr := tool.Run(ctx, []byte(call.Args))
-				if runErr != nil {
-					r = tools.Result{OK: false, Output: runErr.Error(), Provenance: core.ProvObserved}
+				var r tools.Result
+				var runErr error
+				durationMS := int64(0)
+				if prefetched != nil && prefetched[idx].done {
+					r = prefetched[idx].r
+					durationMS = prefetched[idx].durationMS
+				} else {
+					r, runErr = tool.Run(ctx, []byte(call.Args))
+					if runErr != nil {
+						r = tools.Result{OK: false, Output: runErr.Error(), Provenance: core.ProvObserved}
+					}
+					durationMS = time.Since(started).Milliseconds()
 				}
 				exitCode := 0
 				if r.Meta != nil && r.Meta["exit_code"] != "" {
@@ -462,7 +473,7 @@ steps:
 				}
 				e.emit(core.EvtToolEnd, core.ToolEndData{
 					CallID: call.ID, OK: r.OK, ExitCode: exitCode,
-					DurationMS: time.Since(started).Milliseconds(),
+					DurationMS: durationMS,
 					Output:     truncateRunes(r.Output, 2000), Truncated: len(r.Output) > 2000,
 					Diff: truncateRunes(r.Meta["diff"], 12000),
 				})
@@ -655,6 +666,54 @@ func (e *Engine) outsideRead(ctx context.Context, call llm.ToolCall, result, inp
 	content := tools.Compress(string(data))
 	e.emit(core.EvtNotice, core.NoticeData{Level: "warn", Text: "工作区外读取 " + path + ": " + truncateRunes(content, 80)})
 	return content, true
+}
+
+type prefetchedTool struct {
+	r          tools.Result
+	durationMS int64
+	done       bool
+}
+
+// prefetchReadOnly 在同一模型步里并行执行只读工具；写/exec/net 与完成申请保持串行。
+// 结果按原调用顺序返回，事件与证据仍由主循环串行产出。
+func (e *Engine) prefetchReadOnly(ctx context.Context, calls []llm.ToolCall) []prefetchedTool {
+	if len(calls) < 2 {
+		return nil
+	}
+	for _, call := range calls {
+		if call.Name == "request_done" || call.Name == "declare_untested" {
+			return nil
+		}
+		tool, ok := e.registry.Get(call.Name)
+		if !ok || tool.Risk() != tools.RiskRead || e.approval.NeedApproval(tool, "") {
+			return nil
+		}
+	}
+	out := make([]prefetchedTool, len(calls))
+	var wg sync.WaitGroup
+	for i, call := range calls {
+		wg.Add(1)
+		go func(i int, call llm.ToolCall) {
+			defer wg.Done()
+			defer func() {
+				if rec := recover(); rec != nil {
+					out[i] = prefetchedTool{
+						r:    tools.Result{OK: false, Output: fmt.Sprint("工具 panic: ", rec), Provenance: core.ProvObserved},
+						done: true,
+					}
+				}
+			}()
+			tool, _ := e.registry.Get(call.Name)
+			started := time.Now()
+			r, err := tool.Run(ctx, []byte(call.Args))
+			if err != nil {
+				r = tools.Result{OK: false, Output: err.Error(), Provenance: core.ProvObserved}
+			}
+			out[i] = prefetchedTool{r: r, durationMS: time.Since(started).Milliseconds(), done: true}
+		}(i, call)
+	}
+	wg.Wait()
+	return out
 }
 
 func toolResultMsg(callID, output string) llm.Message {

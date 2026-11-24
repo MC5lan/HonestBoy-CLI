@@ -39,6 +39,8 @@ TUI 采用统一的三段式布局：
   `hb resume` 与会话选择器走同一路径，Receipt 哈希链继续追加。
 - **增量渲染**：流式 Markdown 只重渲已完成的段落前缀，未闭合的尾部按原文显示，避免长回答每个 delta
   都跑一遍 glamour。
+- **只读并行**：同一模型步的只读工具并行执行；写/exec/net 仍串行，事件、证据与改动判定按原调用顺序产出。
+- **会话分片**：单会话超过 50MB 自动追加到 `id-2.jsonl`；Load/List/Delete/AllReceipts 合并全部分片。
 - **上下文压缩**：`engine.Budget.Trim` 在主循环每轮调用，system 与最近 2 轮完整保留，旧工具输出压到 200 字符，
   裁剪结果通过 `notice` 事件上报；`WithCompactMark` 明确告知模型历史已被摘要。
 - **git 上下文注入**：`EnvContext` 每次回合注入 `git status --short` 与 `git diff --stat`。

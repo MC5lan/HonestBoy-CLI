@@ -28,6 +28,8 @@
 - `tools.d/*.json` 自定义工具：直接 exec、参数模板、Risk、schema 校验、超时/输出上限。
 - `web_fetch`：默认关闭，域名白名单、私网/回环拒绝、2MB 截断、联网审批。
 - `session_end` 事件与 `hb sessions` 异常退出标记。
+- 单会话超过 50MB 自动分片到 `id-2.jsonl`，Load/List/Delete/AllReceipts 合并分片。
+- 同一模型步的只读工具并行执行；写/exec/net 仍串行，事件与证据按原顺序产出。
 - Registry 输出真实声明，注册时校验 schema 与重名。
 - 删除 `RunChat`/`RunResume` 死代码。
 

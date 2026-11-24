@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,6 +17,9 @@ import (
 )
 
 const schemaVersion = 1
+
+// sessionMaxBytes 是单分片上限；超过后追加到 id-2.jsonl、id-3.jsonl。
+var sessionMaxBytes int64 = 50 << 20
 
 var (
 	ErrSessionNotFound = errors.New("session not found")
@@ -47,6 +51,7 @@ type SessionMeta struct {
 type SessionStore struct {
 	Paths     Paths
 	sessionID string
+	part      int // 当前写入分片，从 1 开始
 	lock      *flock.Flock
 }
 
@@ -82,6 +87,41 @@ func (s *SessionStore) path(id string) string {
 	return filepath.Join(s.Paths.Sessions, id+".jsonl")
 }
 
+func (s *SessionStore) partPath(id string, part int) string {
+	if part <= 1 {
+		return s.path(id)
+	}
+	return filepath.Join(s.Paths.Sessions, id+"-"+strconv.Itoa(part)+".jsonl")
+}
+
+// parts 返回从 1 开始连续存在的分片路径。
+func (s *SessionStore) parts(id string) []string {
+	var out []string
+	first := s.path(id)
+	if _, err := os.Stat(first); err == nil {
+		out = append(out, first)
+	}
+	for part := 2; ; part++ {
+		p := s.partPath(id, part)
+		if _, err := os.Stat(p); err != nil {
+			break
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+// isPartFile 判断是否是 id-2.jsonl 这类续片，List/AllReceipts 不应把它当独立会话。
+func isPartFile(name string) bool {
+	base := strings.TrimSuffix(name, ".jsonl")
+	i := strings.LastIndex(base, "-")
+	if i <= 0 || i == len(base)-1 {
+		return false
+	}
+	_, err := strconv.Atoi(base[i+1:])
+	return err == nil
+}
+
 func (s *SessionStore) ensureDir() error {
 	return os.MkdirAll(s.Paths.Sessions, 0o700)
 }
@@ -94,13 +134,28 @@ func (s *SessionStore) appendLine(id string, v jsonlLine) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(s.path(id), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	part := s.part
+	if part <= 0 {
+		part = 1
+	}
+	path := s.partPath(id, part)
+	// meta 永远留在第一片；事件/回执达到上限后切到下一片。
+	if v.Kind != "meta" {
+		if info, statErr := os.Stat(path); statErr == nil && info.Size() >= sessionMaxBytes {
+			part++
+			path = s.partPath(id, part)
+		}
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 	if _, err = f.Write(append(line, '\n')); err != nil {
 		return err
+	}
+	if v.Kind != "meta" {
+		s.part = part
 	}
 	return f.Sync()
 }
@@ -113,6 +168,7 @@ func (s *SessionStore) Create(meta core.Session) error {
 		return err
 	}
 	s.sessionID = meta.ID
+	s.part = 1
 	return s.appendLine(meta.ID, jsonlLine{
 		V: schemaVersion, Kind: "meta", ID: meta.ID, Cwd: meta.Cwd, CreatedAt: meta.CreatedAt,
 	})
@@ -150,52 +206,64 @@ func (s *SessionStore) AppendReceipt(r core.Receipt) error {
 	return s.appendLine(s.sessionID, jsonlLine{V: schemaVersion, Kind: "receipt", Receipt: raw})
 }
 
-// Load 从 jsonl 重建 Session（事件按 Type 分派为具体结构）。
+// Load 从 jsonl 全部分片重建 Session（事件按 Type 分派为具体结构）。
 func (s *SessionStore) Load(id string) (*core.Session, error) {
-	f, err := os.Open(s.path(id))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, ErrSessionNotFound
-		}
-		return nil, err
+	parts := s.parts(id)
+	if len(parts) == 0 {
+		return nil, ErrSessionNotFound
 	}
-	defer f.Close()
 	sess := &core.Session{ID: id}
-	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(strings.TrimSpace(string(line))) == 0 {
-			continue
+	for _, path := range parts {
+		f, err := os.Open(path)
+		if err != nil {
+			return nil, err
 		}
-		var w jsonlLine
-		if err := json.Unmarshal(line, &w); err != nil {
-			return nil, fmt.Errorf("bad jsonl line: %w", err)
+		scanner := bufio.NewScanner(f)
+		scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
+		for scanner.Scan() {
+			line := scanner.Bytes()
+			if len(strings.TrimSpace(string(line))) == 0 {
+				continue
+			}
+			var w jsonlLine
+			if err := json.Unmarshal(line, &w); err != nil {
+				f.Close()
+				return nil, fmt.Errorf("bad jsonl line: %w", err)
+			}
+			if w.V > schemaVersion {
+				f.Close()
+				return nil, fmt.Errorf("schema version %d newer than supported %d", w.V, schemaVersion)
+			}
+			switch w.Kind {
+			case "meta":
+				sess.ID, sess.Cwd, sess.CreatedAt = w.ID, w.Cwd, w.CreatedAt
+			case "event":
+				ev, err := core.UnmarshalEvent(w.Event)
+				if err != nil {
+					f.Close()
+					return nil, err
+				}
+				sess.Events = append(sess.Events, ev)
+				if ev.Seq > sess.Seq() {
+					sess.SetSeq(ev.Seq)
+				}
+			case "receipt":
+				var r core.Receipt
+				if err := json.Unmarshal(w.Receipt, &r); err != nil {
+					f.Close()
+					return nil, err
+				}
+				sess.Receipts = append(sess.Receipts, r)
+			}
 		}
-		if w.V > schemaVersion {
-			return nil, fmt.Errorf("schema version %d newer than supported %d", w.V, schemaVersion)
-		}
-		switch w.Kind {
-		case "meta":
-			sess.ID, sess.Cwd, sess.CreatedAt = w.ID, w.Cwd, w.CreatedAt
-		case "event":
-			ev, err := core.UnmarshalEvent(w.Event)
-			if err != nil {
-				return nil, err
-			}
-			sess.Events = append(sess.Events, ev)
-			if ev.Seq > sess.Seq() {
-				sess.SetSeq(ev.Seq)
-			}
-		case "receipt":
-			var r core.Receipt
-			if err := json.Unmarshal(w.Receipt, &r); err != nil {
-				return nil, err
-			}
-			sess.Receipts = append(sess.Receipts, r)
+		err = scanner.Err()
+		f.Close()
+		if err != nil {
+			return nil, err
 		}
 	}
-	return sess, scanner.Err()
+	s.part = len(parts)
+	return sess, nil
 }
 
 // List 只读元信息行与文件修改时间，按修改时间倒序。
@@ -209,17 +277,19 @@ func (s *SessionStore) List() ([]SessionMeta, error) {
 	}
 	var out []SessionMeta
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".jsonl") {
-			continue
-		}
-		info, err := entry.Info()
-		if err != nil {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".jsonl") || isPartFile(entry.Name()) {
 			continue
 		}
 		id := strings.TrimSuffix(entry.Name(), ".jsonl")
-		meta := SessionMeta{ID: id, ModifiedAt: info.ModTime()}
-		f, err := os.Open(s.path(id))
-		if err == nil {
+		meta := SessionMeta{ID: id}
+		for _, path := range s.parts(id) {
+			if info, err := os.Stat(path); err == nil && info.ModTime().After(meta.ModifiedAt) {
+				meta.ModifiedAt = info.ModTime()
+			}
+			f, err := os.Open(path)
+			if err != nil {
+				continue
+			}
 			scanner := bufio.NewScanner(f)
 			for scanner.Scan() {
 				var w jsonlLine
@@ -261,10 +331,15 @@ func (s *SessionStore) List() ([]SessionMeta, error) {
 	return out, nil
 }
 
-// Delete 删除一个会话文件及其检查点目录。
+// Delete 删除一个会话的全部分片及其检查点目录。
 func (s *SessionStore) Delete(id string) error {
 	_ = os.RemoveAll(filepath.Join(s.Paths.Sessions, id))
-	return os.Remove(s.path(id))
+	for _, path := range s.parts(id) {
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	return nil
 }
 
 // DirSize 返回会话目录占用字节数。
@@ -310,26 +385,29 @@ func (s *SessionStore) AllReceipts() ([]core.Receipt, error) {
 	}
 	var out []core.Receipt
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".jsonl") {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".jsonl") || isPartFile(entry.Name()) {
 			continue
 		}
-		f, err := os.Open(s.path(strings.TrimSuffix(entry.Name(), ".jsonl")))
-		if err != nil {
-			continue
-		}
-		scanner := bufio.NewScanner(f)
-		scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
-		for scanner.Scan() {
-			var w jsonlLine
-			if json.Unmarshal(scanner.Bytes(), &w) != nil || w.Kind != "receipt" {
+		id := strings.TrimSuffix(entry.Name(), ".jsonl")
+		for _, path := range s.parts(id) {
+			f, err := os.Open(path)
+			if err != nil {
 				continue
 			}
-			var r core.Receipt
-			if json.Unmarshal(w.Receipt, &r) == nil {
-				out = append(out, r)
+			scanner := bufio.NewScanner(f)
+			scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
+			for scanner.Scan() {
+				var w jsonlLine
+				if json.Unmarshal(scanner.Bytes(), &w) != nil || w.Kind != "receipt" {
+					continue
+				}
+				var r core.Receipt
+				if json.Unmarshal(w.Receipt, &r) == nil {
+					out = append(out, r)
+				}
 			}
+			f.Close()
 		}
-		f.Close()
 	}
 	return out, nil
 }

@@ -80,11 +80,11 @@
 依赖：M1/M2 可并行，但建议在 M2 后。目标：补齐手册能力矩阵里标为“做”的缺口。
 
 - [x] `hb run --diff`：把 `git diff` 作为上下文 (M)
-- [ ] 并行只读工具：无依赖 read/search/list 并行，写操作串行 (M)
+- [x] 并行只读工具：同一模型步内 read/search/list 并行，写/exec/net 串行 (M)
 - [x] 自定义工具 `tools.d/*.json`：命令+schema+Risk+Provenance，显式启用 (L)
 - [x] `web_fetch` 白名单域名，默认关闭，开启需审批 (M)
 - [x] `session_end` 事件；`hb sessions` 显示异常退出标记 (S)
-- [ ] 单会话 50MB 轮转到 `session-<id>-2.jsonl` (M)
+- [x] 单会话 50MB 轮转到 `session-<id>-2.jsonl`；Load/List/Delete 合并分片 (M)
 - [x] `Registry.Declarations()` 输出真实声明；注册时校验 schema；重名错误区分 (M)
 - [x] 清理 `RunChat`/`RunResume` 死代码 (S)
 

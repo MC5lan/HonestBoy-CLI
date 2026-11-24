@@ -46,7 +46,8 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
     40 个 golden 快照、200 块 LRU 缓存。200 行代码实测 35.5ms，离 30ms 目标还差一点。
 31. M3 引擎/工具：`--diff`、`tools.d` 自定义工具、`web_fetch` 白名单、`session_end`
     与异常退出标记、注册表 schema/声明校验；删除 `RunChat`/`RunResume` 死代码。
-    并行只读工具与 50MB 会话轮转仍未做。
+32. M3 收尾：同一模型步只读工具并行；会话超过 50MB 自动分片，
+    Load/List/Delete/AllReceipts 合并分片并有回归测试。
 
 ## 2026-11-23
 
