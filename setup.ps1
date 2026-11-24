@@ -13,12 +13,7 @@ $repo = Split-Path -Parent $MyInvocation.MyCommand.Path
 Write-Host '==> 1/4 构建 hb'
 $goCmd = Get-Command go -ErrorAction SilentlyContinue
 if (-not $goCmd) {
-    $goToolchain = 'D:\win7harness\go-toolchain\go\bin'
-    if (Test-Path (Join-Path $goToolchain 'go.exe')) {
-        $env:PATH = "$goToolchain;$env:PATH"
-    } else {
-        throw '没找到 Go 1.27，请先安装 Go。'
-    }
+    throw '没找到 Go，请安装 Go 1.27+ 并加入 PATH。'
 }
 Push-Location $repo
 go build -o bin\hb.exe ./cmd/hb

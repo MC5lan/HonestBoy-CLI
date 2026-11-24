@@ -103,7 +103,7 @@ func DetectLengthDriftTriple(normal, induce, pressure string) bool {
 	return float64(mx)/float64(mn) > 1.8 || mx-mn > 120
 }
 
-// DetectLengthDrift 是两文本场景的兼容封装（手册 T409）：
+// DetectLengthDrift 是两文本场景的兼容封装（T409）：
 // 膨胀 >1.8 倍且新增部分不含标识符（下划线、括号、路径、数字）才标记。
 func DetectLengthDrift(prev, next string) bool {
 	prevLen, nextLen := TokenEstimate(prev), TokenEstimate(next)

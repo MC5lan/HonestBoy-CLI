@@ -9,12 +9,13 @@
   <img alt="Go" src="https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white">
   <img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue">
   <img alt="Status" src="https://img.shields.io/badge/status-v0.1.0--dev-orange">
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey">
 </p>
 
 <p align="center"><strong>完成与否，不听模型说了什么，只看验证器跑出了什么。</strong></p>
 
-`hb` 是一个本地 AI 编程智能体 CLI。模型可以读写代码、执行命令、跑测试，
-但只有 Gate 认可的验证器证据才能把回合标记为 `done`。没有证据的“我修好了”会得到退出码 `4`。
+`hb` 是一个本地 AI 编程智能体 CLI。它在工作区里读写代码、执行命令、跑构建与测试，
+但只有 Gate 认可的验证器证据才能把回合标记为 `done`。没有证据的“我修好了”会被拒绝。
 
 > 模型：已修复。
 >
@@ -22,30 +23,30 @@
 >
 > 模型可以继续跑构建/测试补齐证据，也可以明确弃权。两条路都比假完成诚实。
 
+## 亮点
+
+| 能力 | 说明 |
+|---|---|
+| **证据门禁** | `done` 必须由本次真实运行、通过、可接地的 `build` / `test` / `vet` 证据支撑 |
+| **可审计** | 证据带原文哈希，Receipt 串成哈希链；`hb verify` 定位篡改 |
+| **真工具** | 读/写/精确编辑、`apply_patch`、搜索、shell、构建/测试/静态检查 |
+| **长任务** | 上下文压缩、仓库地图、每轮检查点、`hb rewind` 代码回退 |
+| **工作流** | 计划模式 + `hb approve`、`--auto-commit`、`hb undo` / `hb diff` |
+| **质量契约** | `rigor=strict` 要求完整实现、边界/安全、最小 diff，并检查占位符 |
+| **TUI** | 像素吉祥物与球场动画、右侧可观测面板、`/` 命令面板、`?` 帮助页 |
+| **模型** | OpenAI Chat、Anthropic Messages、OpenAI Responses 三套协议 |
+| **本地** | 会话只落本机，无遥测；密钥只从环境变量读取 |
+
 ## 快速开始
 
 先按下方[安装](#安装)把 `hb` 放进 PATH，然后：
 
 ```bash
-hb init                          # 首次配置：端点、模型、密钥环境变量名
-hb probe                         # 无需密钥：先验证 Gate 拦不拦得住虚报
-hb run "修复 go test ./... 的失败"  # 单次任务
-hb                               # TUI（需要 TTY）
+hb init                            # 首次配置：端点、模型、密钥环境变量名
+hb probe                           # 无需密钥：先验证 Gate 拦不拦得住虚报
+hb run "修复 go test ./... 的失败"   # 单次任务
+hb                                 # TUI（需要 TTY）
 ```
-
-## 特性
-
-- **完成门禁**：`done` 必须有本次真实运行、通过、可接地的 `build` / `test` / `vet` 证据
-- **可审计**：证据带原文哈希，Receipt 串成哈希链，`hb verify` 定位篡改
-- **流程约束**：歧义暂停、自评阻断、测试计划三态、高危动作单次授权
-- **编程能力**：精确编辑 / `apply_patch` / 搜索 / shell / 验证器；上下文压缩、仓库地图、检查点回退
-- **上下文窗口**：300k / 600k / 960k 三档，默认 960k；`hb config set context.window 600k`
-- **默认工作区**：`hb config set workdir D:\code\your-project`；`--cwd` 可临时覆盖
-- **严格质量契约**：`hb config set rigor strict`；占位符告警 + 完整实现/边界/安全要求，不改变 Gate
-- **工作流**：计划模式 + `hb approve`、`--auto-commit`、`hb undo` / `hb diff`
-- **TUI**：像素吉祥物与球场动画、右侧可观测面板、`/` 命令面板、`?` 帮助页、审批往返
-- **模型**：OpenAI Chat、Anthropic Messages、OpenAI Responses 三套协议
-- **本地**：会话只落本机，无遥测；密钥只从环境变量读取
 
 ## 工作方式
 
@@ -61,7 +62,7 @@ hb                               # TUI（需要 TTY）
 
 机制细节见 [`docs/architecture.md`](docs/architecture.md) 与 [`docs/evidence-format.md`](docs/evidence-format.md)。
 
-## 命令
+## 常用命令
 
 | 命令 | 说明 |
 |---|---|
@@ -75,6 +76,43 @@ hb                               # TUI（需要 TTY）
 | `hb upgrade` / `hb gc` / `hb export` | 自更新 / 清理 / 脱敏导出 |
 
 完整参数与 TUI 快捷键见 [`docs/commands.md`](docs/commands.md)。
+
+## TUI
+
+- **顶部**：常驻球场，像素小人颠球；Gate 通过时射门并显示 `GOAL!`
+- **中部**：流式 Markdown、代码高亮、diff 与工具卡片
+- **右侧**：可观测面板（工具成败、证据、Gate 规则、上下文剩余）
+- **底部**：忙碌行、审批卡片、命令面板、输入框与状态栏
+
+| 快捷键 | 行为 |
+|---|---|
+| `Enter` | 提交任务 |
+| `Ctrl+C` | 中断当前回合；空闲时退出 |
+| `Ctrl+L` | 清屏 |
+| `Esc` | 中断 / 关闭提示 |
+| `↑ / ↓` | 历史输入 / 命令面板选择 |
+| `Tab` | 补全命令 |
+| `?` | 快捷键帮助 |
+| `/` | 命令面板 |
+
+## 配置速查
+
+配置文件：Windows `%LOCALAPPDATA%\HB\config.json`，Linux `~/.config/HB/config.json`。
+
+| 键 | 默认 | 说明 |
+|---|---|---|
+| `workdir` | 当前目录 | 默认工作区（沙箱边界）；`--cwd` 可临时覆盖 |
+| `context.window` | `960k` | 上下文窗口：`300k` / `600k` / `960k` |
+| `reasoning_effort` | 提供方默认 | 思考强度：`low` / `high` / `max` |
+| `rigor` | `normal` | `strict` 启用严格质量契约与占位符检查 |
+| `approval.write` / `.exec` | `auto` / `ask` | 写文件 / 执行命令的审批策略 |
+
+```bash
+hb config set workdir D:\code\your-project
+hb config set context.window 600k
+hb config set reasoning_effort low
+hb config set rigor strict
+```
 
 ## 安装
 
@@ -97,14 +135,14 @@ install -m 755 bin/hb ~/.local/bin/hb   # 确保 ~/.local/bin 在 PATH
 
 需要 Go 1.27+。`winget` / `scoop` 清单已就绪，待首个 release 回填 SHA256 并收录。
 
-## 文档与论文
+## 文档
 
-- [指导论文：构造性闭环](docs/paper/constructive-closure.pdf) — 本项目的直接理论来源
-- [架构与机制接线](docs/architecture.md)
+- [架构与机制](docs/architecture.md)
 - [命令与快捷键](docs/commands.md)
 - [证据格式](docs/evidence-format.md)
-- [故障排查](docs/troubleshooting.md)
 - [严格质量契约](docs/rigor.md)
+- [故障排查](docs/troubleshooting.md)
+- [设计论文（PDF）](docs/paper/constructive-closure.pdf)
 - [发布清单](docs/release-checklist.md)
 
 ## 开发
@@ -120,7 +158,7 @@ make release-check   # build + vet + test + checkdeps + e2e
 
 ## 状态
 
-核心机制、三套协议、TUI、证据链、检查点、计划模式与发布脚手架均已实现。
+核心机制、三套协议、TUI、证据链、检查点、计划模式、严格质量契约与发布脚手架均已实现。
 首个正式 release 尚未发布；已知技术债见 [`docs/tech-debt.md`](docs/tech-debt.md)。
 
 Apache-2.0，见 [`LICENSE`](LICENSE)。
