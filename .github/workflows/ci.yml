@@ -10,6 +10,7 @@ jobs:
       - run: go build ./...
       - run: go vet ./...
       - run: go test ./... -race -count=1
+      - run: go test ./internal/core ./internal/tools ./internal/tui/... -count=10
       - run: bash scripts/checkdeps.sh
 
   e2e-windows:

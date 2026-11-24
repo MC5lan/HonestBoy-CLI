@@ -39,6 +39,7 @@
 - `hb doctor --fix` 重建损坏配置；`hb help <topic>` 提供 run/config/evidence/tools/exit-codes。
 - `hb upgrade --check` 24 小时缓存；`HB_NO_UPDATE_CHECK=1` 可关闭检查。
 - 崩溃日志统一写入 `HB/logs/crash`，不再污染工作区。
+- 二进制 e2e 增至 5 个（含无密钥退出 6、无证据 denied 退出 4）；CI 增加 `-count=10` 回归。
 
 ## v0.1.1 - 2026-11-24
 
