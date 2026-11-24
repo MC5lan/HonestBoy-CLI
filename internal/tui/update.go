@@ -219,7 +219,12 @@ func (m *Model) applyEvent(ev core.Event) {
 	switch ev.Type {
 	case core.EvtTurnStart:
 		if d, ok := ev.Data.(core.TurnStartData); ok {
-			m.blocks = append(m.blocks, block{kind: blkUser, content: d.Input, dirty: true})
+			// submit() 已经先显示过用户输入；事件回放时才需要补一条。
+			// 连续相同的用户块不重复添加，避免“> 你好”出现两次。
+			n := len(m.blocks)
+			if n == 0 || m.blocks[n-1].kind != blkUser || m.blocks[n-1].content != d.Input {
+				m.blocks = append(m.blocks, block{kind: blkUser, content: d.Input, dirty: true})
+			}
 			m.refreshView()
 		}
 	case core.EvtTextDelta:
@@ -227,18 +232,15 @@ func (m *Model) applyEvent(ev core.Event) {
 		if !ok || d.Text == "" {
 			return
 		}
-		idx := -1
-		for i := len(m.blocks) - 1; i >= 0; i-- {
-			if m.blocks[i].kind == blkAssistant {
-				idx = i
-				break
-			}
-		}
-		if idx < 0 {
+		// 只延续“最后一个块”上的助手文本；中间插入工具/通知后，
+		// 后续文本要新起一块，保证渲染顺序与事件顺序一致。
+		idx := len(m.blocks) - 1
+		if idx < 0 || m.blocks[idx].kind != blkAssistant {
 			m.blocks = append(m.blocks, block{kind: blkAssistant, dirty: true})
 			idx = len(m.blocks) - 1
 		}
 		m.blocks[idx].content += d.Text
+		m.blocks[idx].dirty = true
 		if time.Since(m.lastRender) >= 16*time.Millisecond || strings.Contains(d.Text, "\n") {
 			m.lastRender = time.Now()
 			m.refreshView()

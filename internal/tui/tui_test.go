@@ -42,6 +42,55 @@ func TestSlashCommand(t *testing.T) {
 	}
 }
 
+// 文本块渲染后继续追加内容必须标记 dirty，否则 TUI 只显示第一段。
+func TestAssistantTextKeepsUpdating(t *testing.T) {
+	m := NewModel(Config{Theme: "none"})
+	m.setSize(100, 40)
+	m.applyEvent(core.Event{Type: core.EvtTurnStart, Data: core.TurnStartData{Input: "你是谁"}})
+	m.applyEvent(core.Event{Type: core.EvtTextDelta, Data: core.TextDeltaData{Text: "我是 Honest Boy"}})
+	_ = m.View()
+	m.applyEvent(core.Event{Type: core.EvtTextDelta, Data: core.TextDeltaData{Text: "，可以读写文件。\n", Block: 0}})
+	view := m.View()
+	if !strings.Contains(view, "可以读写文件") {
+		t.Fatalf("updated assistant text missing from view:\n%s", view)
+	}
+}
+
+// 工具/通知插入后，后续文本应新起一块，不能回填到工具之前的块里。
+func TestAssistantTextAfterToolStartsNewBlock(t *testing.T) {
+	m := NewModel(Config{Theme: "none"})
+	m.setSize(100, 40)
+	m.applyEvent(core.Event{Type: core.EvtTextDelta, Data: core.TextDeltaData{Text: "先看一下"}})
+	m.applyEvent(core.Event{Type: core.EvtToolRequest, Data: core.ToolRequestData{CallID: "c1", Tool: "read_file", Args: `{"path":"a"}`}})
+	m.applyEvent(core.Event{Type: core.EvtTextDelta, Data: core.TextDeltaData{Text: "看完了"}})
+	var kinds []blockKind
+	for _, b := range m.blocks {
+		kinds = append(kinds, b.kind)
+	}
+	if len(kinds) != 3 || kinds[0] != blkAssistant || kinds[1] != blkTool || kinds[2] != blkAssistant {
+		t.Fatalf("blocks = %v", kinds)
+	}
+	if m.blocks[2].content != "看完了" {
+		t.Fatalf("post-tool text = %q", m.blocks[2].content)
+	}
+}
+
+// submit 已显示用户输入时，turn_start 不应再重复插入。
+func TestTurnStartDoesNotDuplicateUserBlock(t *testing.T) {
+	m := NewModel(Config{Theme: "none"})
+	m.blocks = append(m.blocks, block{kind: blkUser, content: "你好", dirty: true})
+	m.applyEvent(core.Event{Type: core.EvtTurnStart, Data: core.TurnStartData{Input: "你好"}})
+	count := 0
+	for _, b := range m.blocks {
+		if b.kind == blkUser {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("user blocks = %d, want 1", count)
+	}
+}
+
 func TestModelEventFlow(t *testing.T) {
 	m := NewModel(Config{Workdir: "D:\\work", Model: "m", Theme: "none"})
 	m.setSize(100, 40)
