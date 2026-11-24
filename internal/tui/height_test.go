@@ -16,12 +16,12 @@ func TestViewFitsHeight(t *testing.T) {
 		if got > h {
 			t.Fatalf("height=%d: view has %d lines", h, got)
 		}
-		// 有内容和 GOAL 状态下同样不能超。
+		// 有内容和 done 终态下同样不能超。
 		m.applyEvent(core.Event{Seq: 1, Type: core.EvtTurnStart, Data: core.TurnStartData{Input: "任务"}})
 		m.term = core.TermDone
 		got = len(strings.Split(m.View(), "\n"))
 		if got > h {
-			t.Fatalf("height=%d goal: view has %d lines", h, got)
+			t.Fatalf("height=%d done: view has %d lines", h, got)
 		}
 	}
 }

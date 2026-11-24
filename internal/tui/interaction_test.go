@@ -69,12 +69,12 @@ func TestCtrlCIdleQuits(t *testing.T) {
 func TestBannerAlwaysVisible(t *testing.T) {
 	m := NewModel(Config{Workdir: "~/proj", Model: "m", Theme: "none"})
 	m.setSize(80, 30)
-	// 没有消息时，横幅里有吉祥物与标题。
+	// 没有消息时，顶部标题栏包含产品名。
 	emptyView := m.View()
 	if !strings.Contains(emptyView, "Honest Boy") {
 		t.Fatal("banner missing on empty screen")
 	}
-	// 有消息后，顶部框应当仍然常驻（吉祥物框不消失）。
+	// 有消息后，标题栏仍然常驻。
 	m.applyEvent(core.Event{Seq: 1, Type: core.EvtTurnStart, Data: core.TurnStartData{Input: "任务"}})
 	withBlocks := m.View()
 	if !strings.Contains(withBlocks, "Honest Boy") {

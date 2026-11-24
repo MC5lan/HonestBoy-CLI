@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/core"
 	tea "github.com/charmbracelet/bubbletea"
@@ -139,19 +138,6 @@ func TestCtrlCWorksOnHelpPage(t *testing.T) {
 	}
 }
 
-// 射门动画结束后必须回到颠球，不能永久冻结在 kickFrame=8。
-func TestKickAnimationDoesNotFreeze(t *testing.T) {
-	m := NewModel(Config{Theme: "none", Model: "m", Workdir: "p"})
-	m.setSize(100, 40)
-	m.applyEvent(core.Event{Type: core.EvtGateAllow, Data: core.GateAllowData{}})
-	for i := 0; i < 12; i++ {
-		m.Update(spinnerTickMsg(time.Now()))
-	}
-	if m.kickFrame != 0 {
-		t.Fatalf("kickFrame should reset after kick, got %d", m.kickFrame)
-	}
-}
-
 // 命令面板选中第 7 项以后高亮必须仍在窗口内。
 func TestPaletteHighlightStaysVisible(t *testing.T) {
 	m := NewModel(Config{Theme: "none"})
@@ -166,7 +152,7 @@ func TestPaletteHighlightStaysVisible(t *testing.T) {
 	}
 }
 
-// 新回合必须清掉上一回合的 done/GOAL 状态。
+// 新回合必须清掉上一回合的 done 状态。
 func TestNewTurnResetsTerminalState(t *testing.T) {
 	m := NewModel(Config{Theme: "none", Model: "m", Workdir: "p"})
 	m.setSize(100, 40)
@@ -177,7 +163,7 @@ func TestNewTurnResetsTerminalState(t *testing.T) {
 		t.Fatalf("terminal state leaked into next turn: %q", m.term)
 	}
 	view := stripANSI.ReplaceAllString(m.View(), "")
-	if strings.Contains(view, "GOAL!") || strings.Contains(view, "· 完成") {
+	if strings.Contains(view, "· 完成") {
 		t.Fatalf("stale done state visible:\n%s", view)
 	}
 }
@@ -361,17 +347,18 @@ func TestSaveHistoryCallback(t *testing.T) {
 	}
 }
 
-// 小终端收缩横幅，大终端保留球场。
-func TestBannerCompactsOnShortTerminal(t *testing.T) {
-	small := NewModel(Config{Theme: "none", Model: "m", Workdir: "p"})
-	small.setSize(80, 24)
-	if n := len(strings.Split(small.banner(), "\n")); n != 3 {
-		t.Fatalf("compact banner lines = %d", n)
-	}
-	large := NewModel(Config{Theme: "none", Model: "m", Workdir: "p"})
-	large.setSize(100, 40)
-	if n := len(strings.Split(large.banner(), "\n")); n != 13 {
-		t.Fatalf("full banner lines = %d", n)
+// 标题栏固定 3 行，不再容纳吉祥物/球场。
+func TestBannerIsCompactTitleBar(t *testing.T) {
+	for _, size := range [][2]int{{80, 24}, {100, 40}} {
+		m := NewModel(Config{Theme: "none", Model: "m", Workdir: "p"})
+		m.setSize(size[0], size[1])
+		lines := strings.Split(m.banner(), "\n")
+		if len(lines) != 3 {
+			t.Fatalf("%dx%d banner lines = %d", size[0], size[1], len(lines))
+		}
+		if strings.Contains(strings.Join(lines, ""), "⚽") {
+			t.Fatalf("%dx%d banner still contains mascot/ball", size[0], size[1])
+		}
 	}
 }
 

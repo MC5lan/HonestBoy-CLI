@@ -82,8 +82,6 @@ type Model struct {
 	showSessions  bool
 
 	spinnerIdx int
-	kickFrame  int
-	pitchTick  int
 
 	run      *runState
 	runID    uint64
@@ -198,7 +196,6 @@ func (m *Model) startPrompt(prompt string) tea.Cmd {
 	m.hint = ""
 	m.newBelow = false
 	m.follow = true
-	m.kickFrame, m.pitchTick = 0, 0
 	m.resetTurnStats()
 	if m.cfg.Run == nil {
 		m.err = errNoRunner
@@ -455,7 +452,6 @@ func (m *Model) cancel() tea.Cmd {
 	m.run = nil
 	m.state = stIdle
 	m.queue = nil
-	m.kickFrame = 0
 	m.hint = "已中断，会话已保存；排队任务已清空"
 	m.refreshView()
 	return nil

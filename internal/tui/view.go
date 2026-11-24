@@ -10,33 +10,20 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// banner 是顶部常驻的足球场面板：小人颠球，成功则射门。
-// 终端高度不足 30 行时收缩为 3 行标题，优先保证对话与审批可见。
+// banner 是顶部固定三行的简洁标题栏：品牌、模型、工作区。
+// 不再占用空间放吉祥物或球场动画，释放的行数全部给对话区。
 func (m *Model) banner() string {
-	compact := m.height < 30 || narrowMode(m.width)
 	boxW := m.width
-	if !compact && boxW < 46 {
-		boxW = 46
+	if boxW < 1 {
+		boxW = 1
 	}
 	inner := boxW - 2
 	if inner < 1 {
 		inner = 1
 	}
 	border := m.th.AccentStyle()
-
-	phase := pitchIdle
-	if m.term == core.TermDone {
-		phase = pitchGoal
-	} else if m.kickFrame > 0 {
-		phase = pitchKick
-	} else if m.state == stStreaming || m.state == stToolRunning {
-		phase = pitchWorking
-	}
-
-	title := fmt.Sprintf(" ⚽ Honest Boy FC · %s · %s", render.Truncate(firstNonEmpty(m.cfg.Model, "default"), 18), dirName(m.cfg.Workdir))
-	if m.term == core.TermDone {
-		title += " · GOAL!"
-	}
+	title := fmt.Sprintf(" Honest Boy · %s · %s",
+		render.Truncate(firstNonEmpty(m.cfg.Model, "default"), 18), dirName(m.cfg.Workdir))
 	line := func(text string) string {
 		pad := inner - render.DisplayWidth(text)
 		if pad < 0 {
@@ -44,13 +31,11 @@ func (m *Model) banner() string {
 		}
 		return border.Render("│") + text + strings.Repeat(" ", pad) + border.Render("│")
 	}
-	lines := []string{border.Render("╭" + strings.Repeat("─", inner) + "╮"), line(render.Truncate(title, inner))}
-	if !compact {
-		for _, pl := range strings.Split(renderPitch(phase, m.pitchFrame(), inner-2, m.th.Name != "none"), "\n") {
-			lines = append(lines, line(" "+pl))
-		}
+	lines := []string{
+		border.Render("╭" + strings.Repeat("─", inner) + "╮"),
+		line(render.Truncate(title, inner)),
+		border.Render("╰" + strings.Repeat("─", inner) + "╯"),
 	}
-	lines = append(lines, border.Render("╰"+strings.Repeat("─", inner)+"╯"))
 	return strings.Join(lines, "\n")
 }
 

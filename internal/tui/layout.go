@@ -4,7 +4,7 @@ import "strings"
 
 // Layout 是屏幕分区的高度预算。
 type Layout struct {
-	BannerHeight   int // 顶部品牌框（可收缩为 3 行）
+	BannerHeight   int // 顶部简洁标题栏（固定 3 行）
 	ViewHeight     int // 对话框内部可视高度（不含边框）
 	InputHeight    int // 输入区
 	StatusHeight   int // 状态行 + 快捷键行
@@ -12,7 +12,6 @@ type Layout struct {
 	ApprovalHeight int
 	PaletteHeight  int
 	HintHeight     int
-	CompactBanner  bool
 	ShowPanel      bool
 	ShowShortcuts  bool
 }
@@ -20,11 +19,7 @@ type Layout struct {
 // ComputeLayout 是给测试与外部估算用的纯函数；实际渲染使用 Model.layout，
 // 后者会把审批卡、命令面板、提示行等真实高度算进去。
 func ComputeLayout(w, h int) Layout {
-	compact := h < 30 || narrowMode(w)
-	banner := 13
-	if compact {
-		banner = 3
-	}
+	const banner = 3 // 固定标题栏：上边框 + 标题 + 下边框
 	status := 2
 	if h < 20 {
 		status = 1
@@ -36,7 +31,7 @@ func ComputeLayout(w, h int) Layout {
 	}
 	return Layout{
 		BannerHeight: banner, ViewHeight: view, InputHeight: 1,
-		StatusHeight: status, BusyHeight: 1, CompactBanner: compact,
+		StatusHeight: status, BusyHeight: 1,
 		ShowShortcuts: status == 2, ShowPanel: w >= 76 && h >= 24,
 	}
 }
@@ -52,11 +47,7 @@ func (m *Model) dialogWidth(showPanel bool) int {
 }
 
 func (m *Model) layout() Layout {
-	compact := m.height < 30 || narrowMode(m.width)
-	banner := 13
-	if compact {
-		banner = 3
-	}
+	const banner = 3
 	status := 2
 	if m.height < 20 {
 		status = 1
@@ -87,8 +78,6 @@ func (m *Model) layout() Layout {
 			hint = 0
 		case busy > 0:
 			busy = 0
-		case banner > 3:
-			banner = 3
 		case status > 1:
 			status = 1
 		default:
@@ -118,7 +107,7 @@ func (m *Model) layout() Layout {
 	return Layout{
 		BannerHeight: banner, ViewHeight: view, InputHeight: input,
 		StatusHeight: status, BusyHeight: busy, ApprovalHeight: approval,
-		PaletteHeight: palette, HintHeight: hint, CompactBanner: compact,
+		PaletteHeight: palette, HintHeight: hint,
 		ShowPanel:     showPanel,
 		ShowShortcuts: status == 2,
 	}

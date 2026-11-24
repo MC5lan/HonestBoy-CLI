@@ -1,5 +1,13 @@
 # 变更记录
 
+## Unreleased
+
+### TUI 视觉简化
+
+- 移除 TUI 中的吉祥物、像素球场、颠球/射门动画与 `GOAL!` 状态。
+- 顶部改为固定 3 行简洁标题栏（品牌 / 模型 / 工作区），释放的行数全部给对话区。
+- 删除 `pitch.go`、`pixel.go`、`pitch_tick.go` 及其测试，移除 `kickFrame` / `pitchTick` 状态。
+
 ## v0.1.0 - 2026-11-24
 
 ### TUI 交互重构（A+B+C）

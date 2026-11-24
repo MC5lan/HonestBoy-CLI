@@ -27,6 +27,8 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
     线上 checksums 与本地一致（windows/amd64 `015b4968…`，windows/arm64 `324231c1…`，linux/amd64 `c04fc826…`）；
     winget/scoop 哈希已回填。真实 `hb upgrade --check` 通过；但本机到 GitHub 资产链路约 19KB/s，
     6.8MB 下载超过 2 分钟超时，完整 `upgrade` 未能完成——已记入 D13，待改超时/重试后在正常网络复测。
+23. TUI 视觉简化：移除吉祥物、像素球场、颠球/射门动画和 `GOAL!`，顶部固定为 3 行标题栏；
+    删除了 `pitch.go` / `pixel.go` / `pitch_tick.go` 及动画状态，对话区高度增加 10 行（大终端）。
 
 ## 2026-11-23
 

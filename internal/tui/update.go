@@ -60,15 +60,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.onStreamClosed(msg.runID)
 
 	case spinnerTickMsg:
-		m.pitchTick++
-		if m.kickFrame > 0 {
-			if m.kickFrame < 8 {
-				m.kickFrame++
-			} else {
-				m.kickFrame = 0 // 射门结束后回到颠球，不再永久冻结
-			}
-		}
-		if m.busy() || m.kickFrame > 0 {
+		if m.busy() {
 			m.spinnerIdx++
 			return m, spinnerTick()
 		}
@@ -389,7 +381,6 @@ func (m *Model) applyEvent(ev core.Event) {
 		m.turnGateAllow++
 		m.sessGateAllow++
 		m.blocks = append(m.blocks, block{kind: blkGateAllow, dirty: true})
-		m.startKick()
 		m.refreshView()
 	case core.EvtGateDeny:
 		d, ok := ev.Data.(core.GateDenyData)
