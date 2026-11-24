@@ -88,8 +88,9 @@ func TestContextAndCompactCommands(t *testing.T) {
 	m := NewModel(Config{Theme: "none", ContextWindow: 1000})
 	m.setSize(100, 34)
 	m.promptTokens = 750
+	m.ctxSystem, m.ctxHB, m.ctxHistory, m.ctxTools = 100, 50, 400, 200
 	m.runSlash("/context", "/context", nil)
-	if !strings.Contains(m.hint, "750") || !strings.Contains(m.hint, "1000") {
+	if !strings.Contains(m.hint, "750") || !strings.Contains(m.hint, "1000") || !strings.Contains(m.hint, "HB.md") {
 		t.Fatalf("context hint = %q", m.hint)
 	}
 	m.runSlash("/compact", "/compact", nil)

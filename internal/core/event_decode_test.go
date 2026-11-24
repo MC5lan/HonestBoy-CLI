@@ -23,7 +23,7 @@ func TestUnmarshalEventRoundTrip(t *testing.T) {
 		{"gate_deny", EvtGateDeny, GateDenyData{ClaimID: "cl", Rule: "coverage", Missing: []string{"test"}}},
 		{"abstain", EvtAbstain, AbstainData{Reason: "r", NotDone: []string{"x"}}},
 		{"turn_end", EvtTurnEnd, TurnEndData{Terminal: "done", TokensIn: 1}},
-		{"usage", EvtUsage, UsageData{TokensIn: 1, TokensOut: 2, PromptTokens: 3}},
+		{"usage", EvtUsage, UsageData{TokensIn: 1, TokensOut: 2, PromptTokens: 3, SystemTokens: 4, HBMTokens: 5, HistoryTokens: 6, ToolTokens: 7}},
 		{"error", EvtError, ErrorData{Code: "E", Message: "m"}},
 	}
 	s := &Session{ID: "s"}

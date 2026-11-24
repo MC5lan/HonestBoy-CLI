@@ -36,6 +36,12 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
     winget/scoop 更新到 0.1.1；用修复后的二进制真实升级到 `hb 0.1.1` 成功。
 26. TUI 日用小交互补齐：大段粘贴折叠/还原、Ctrl+Home/End、Ctrl+R 只读重放、Shift+Enter、
     普通审批输入禁用、高危红框/等待计时、状态栏证据数与会话 ID。以上均有回归测试。
+27. TUI 第二批：info 通知 3 秒淡出、/theme、/reload、真正的 /compact、/reset、
+    Ctrl+C 双击退出、Ctrl+O 最后工具块/审批长命令展开。
+28. M1 真机验收（ConPTY 驱动真实 hb chat）：启动、帮助、命令面板、/config、/theme、/reload、
+    /compact、无会话时 Ctrl+R 提示、Ctrl+C 首按提示/二按退出全部通过。
+29. `/context` 已接入 engine 的分项近似 token：system / HB.md / 历史 / 工具结果；
+    低于 15% 时状态栏转警告色。
 
 ## 2026-11-23
 

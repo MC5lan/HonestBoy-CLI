@@ -43,7 +43,7 @@ func (m *Model) approvalCard() *component.Approve {
 	}
 	return &component.Approve{
 		Tool: req.Tool, Command: req.Command, Risk: req.Risk, HighRisk: req.HighRisk,
-		Waited: waited,
+		Waited: waited, Expanded: m.approvalExpanded,
 	}
 }
 

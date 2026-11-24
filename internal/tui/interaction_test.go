@@ -56,13 +56,18 @@ func TestEscIdleDoesNotQuit(t *testing.T) {
 	}
 }
 
-func TestCtrlCIdleQuits(t *testing.T) {
+func TestCtrlCIdleNeedsTwoPresses(t *testing.T) {
 	m := NewModel(Config{})
 	m.setSize(100, 30)
 	m.state = stIdle
-	_, cmd := m.Update(key("ctrl+c"))
-	if cmd == nil {
-		t.Fatal("ctrl+c while idle should quit")
+	if _, cmd := m.Update(key("ctrl+c")); cmd != nil {
+		t.Fatal("single ctrl+c while idle must not quit")
+	}
+	if !strings.Contains(m.hint, "再按一次") {
+		t.Fatalf("hint = %q", m.hint)
+	}
+	if _, cmd := m.Update(key("ctrl+c")); cmd == nil {
+		t.Fatal("double ctrl+c should quit")
 	}
 }
 

@@ -25,6 +25,14 @@ const (
 	stApproving
 )
 
+// Settings 是 /reload 可安全热更新的配置子集；工作区不在此列，避免沙箱错位。
+type Settings struct {
+	Model    string
+	Protocol string
+	BaseURL  string
+	Theme    string
+}
+
 // SessionInfo 是会话选择器需要的精简信息；由 cmd 层注入，tui 不依赖 store。
 type SessionInfo struct {
 	ID       string
@@ -56,6 +64,11 @@ type Config struct {
 	ResumeSession func(id string) ([]core.Event, error)
 	// ApprovePlan 读取计划模式的 Receipt 并返回可执行的计划文本。
 	ApprovePlan func(id string) (string, error)
+	// Reload 读取配置的可热更新子集；SaveTheme 持久化主题。
+	Reload    func() (Settings, error)
+	SaveTheme func(string) error
+	// Compact 请求下一回合压缩历史；由宿主决定具体预算。
+	Compact func()
 	// SaveHistory 在输入历史变化时落盘，供下次启动恢复。
 	SaveHistory func([]string)
 	Onboard     bool
@@ -105,19 +118,25 @@ type Model struct {
 	tokensIn     int
 	tokensOut    int
 	promptTokens int
+	ctxSystem    int
+	ctxHB        int
+	ctxHistory   int
+	ctxTools     int
 
-	turnToolsOK   int
-	turnToolsFail int
-	turnGateAllow int
-	turnGateDeny  int
-	turnEvidence  int
-	approvalAt    time.Time
-	sessToolsOK   int
-	sessToolsFail int
-	sessGateAllow int
-	sessGateDeny  int
-	obsRule       string
-	obsReason     string
+	turnToolsOK      int
+	turnToolsFail    int
+	turnGateAllow    int
+	turnGateDeny     int
+	turnEvidence     int
+	approvalAt       time.Time
+	approvalExpanded bool
+	lastCtrlC        time.Time
+	sessToolsOK      int
+	sessToolsFail    int
+	sessGateAllow    int
+	sessGateDeny     int
+	obsRule          string
+	obsReason        string
 
 	pending *ApprovalAsk
 }
@@ -192,6 +211,7 @@ func (m *Model) startPrompt(prompt string) tea.Cmd {
 	m.input.SetHeight(1)
 	m.histIdx = len(m.history)
 	m.paletteIdx, m.paletteOffset = 0, 0
+	m.cfg.Onboard = false
 	m.blocks = append(m.blocks, block{kind: blkUser, content: prompt, dirty: true})
 	m.state = stStreaming
 	m.startedAt = time.Now()
@@ -310,7 +330,7 @@ func (m *Model) runSlash(name, line string, args []string) tea.Cmd {
 		m.err = nil
 		m.pasteText, m.pasteToken = "", ""
 		m.hint = "已清空当前会话显示（会话记录仍在磁盘）"
-	case "/new":
+	case "/new", "/reset":
 		if m.busy() {
 			m.hint = "执行中不能切换会话；先 Esc 中断"
 			return nil
@@ -334,10 +354,47 @@ func (m *Model) runSlash(name, line string, args []string) tea.Cmd {
 		if window <= 0 {
 			window = 960000
 		}
-		m.hint = fmt.Sprintf("最近一步提示词 %d / %d tokens（估算剩余 %d%%）",
-			m.promptTokens, window, m.contextPercent())
+		m.hint = fmt.Sprintf("上下文 ~%d%% · 最近提示 %d/%d · 系统 %d · HB.md %d · 历史 %d · 工具 %d（估算）",
+			m.contextPercent(), m.promptTokens, window, m.ctxSystem, m.ctxHB, m.ctxHistory, m.ctxTools)
 	case "/compact":
-		m.hint = "上下文会在下一回合自动按预算压缩（旧工具输出截断、旧对话丢弃）"
+		if m.cfg.Compact == nil {
+			m.hint = "上下文会在下一回合自动按预算压缩（宿主未注入手动压缩）"
+			return nil
+		}
+		m.cfg.Compact()
+		m.hint = "已请求压缩：下一回合使用更短历史（旧工具输出截断、旧对话丢弃）"
+	case "/theme":
+		if len(args) == 0 {
+			m.hint = "当前主题: " + m.th.Name + " · 用法: /theme dark|light|none|auto"
+			return nil
+		}
+		name := strings.ToLower(strings.TrimSpace(args[0]))
+		switch name {
+		case "dark", "light", "none", "auto":
+		default:
+			m.hint = "未知主题 " + name + "；可选 dark / light / none / auto"
+			return nil
+		}
+		if m.cfg.SaveTheme != nil {
+			if err := m.cfg.SaveTheme(name); err != nil {
+				m.hint = "保存主题失败: " + err.Error()
+				return nil
+			}
+		}
+		m.applyTheme(name)
+		m.hint = "主题已切换为 " + m.th.Name
+	case "/reload":
+		if m.cfg.Reload == nil {
+			m.hint = "宿主未注入配置重载能力"
+			return nil
+		}
+		s, err := m.cfg.Reload()
+		if err != nil {
+			m.hint = "重载失败: " + err.Error()
+			return nil
+		}
+		m.applySettings(s)
+		m.hint = "配置已重载（模型/协议/端点/主题；工作区仍为当前会话）"
 	case "/verbose":
 		m.verboseTools = !m.verboseTools
 		m.markToolsDirty()
@@ -468,6 +525,30 @@ func (m *Model) resumeSelectedSession() tea.Cmd {
 	return nil
 }
 
+func (m *Model) handleCtrlC() tea.Cmd {
+	// 空闲时先关模态层，不直接退出。
+	if !m.busy() && m.showHelp {
+		m.showHelp = false
+		m.hint = ""
+		return nil
+	}
+	if !m.busy() && m.showSessions {
+		m.showSessions = false
+		m.hint = ""
+		return nil
+	}
+	if m.busy() {
+		m.lastCtrlC = time.Now()
+		return m.cancel()
+	}
+	if !m.lastCtrlC.IsZero() && time.Since(m.lastCtrlC) <= 2*time.Second {
+		return tea.Quit
+	}
+	m.lastCtrlC = time.Now()
+	m.hint = "再按一次 Ctrl+C 退出"
+	return nil
+}
+
 // cancel 处理 Ctrl-C / 忙碌时的 Esc：中断当前回合并清空队列。
 func (m *Model) cancel() tea.Cmd {
 	wasBusy := m.busy()
@@ -526,12 +607,53 @@ func (m *Model) resetSessionStats() {
 	m.sessToolsOK, m.sessToolsFail = 0, 0
 	m.sessGateAllow, m.sessGateDeny = 0, 0
 	m.tokensIn, m.tokensOut, m.promptTokens = 0, 0, 0
+	m.ctxSystem, m.ctxHB, m.ctxHistory, m.ctxTools = 0, 0, 0, 0
+}
+
+func (m *Model) applyTheme(name string) {
+	m.cfg.Theme = name
+	m.th = theme.Load(name)
+	width := m.view.Width
+	if width < 20 {
+		width = 80
+	}
+	m.renderer = render.New(width, m.th.Name)
+	m.resetRenderCache()
+	m.refreshView()
+}
+
+func (m *Model) applySettings(s Settings) {
+	if s.Model != "" {
+		m.cfg.Model = s.Model
+	}
+	if s.Protocol != "" {
+		m.cfg.Protocol = s.Protocol
+	}
+	if s.BaseURL != "" {
+		m.cfg.BaseURL = s.BaseURL
+	}
+	if s.Theme != "" {
+		m.applyTheme(s.Theme)
+		return
+	}
+	m.refreshView()
 }
 
 func (m *Model) resetRenderCache() {
 	for i := range m.blocks {
 		m.blocks[i].dirty = true
 		m.blocks[i].mdKey, m.blocks[i].mdOut = 0, ""
+	}
+}
+
+func (m *Model) toggleLastTool() {
+	for i := len(m.blocks) - 1; i >= 0; i-- {
+		if m.blocks[i].kind == blkTool {
+			m.blocks[i].collapsed = !m.blocks[i].collapsed
+			m.blocks[i].dirty = true
+			m.refreshView()
+			return
+		}
 	}
 }
 

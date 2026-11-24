@@ -16,7 +16,7 @@ type keyBinding struct {
 var keyBindings = []keyBinding{
 	{"Enter", "提交任务或执行命令；命令面板中执行高亮项"},
 	{"Shift+Enter / Alt+Enter", "输入换行（多行任务）"},
-	{"Ctrl+C", "中断当前回合（空闲时退出）；审批/帮助页同样生效"},
+	{"Ctrl+C", "中断当前回合；空闲时连按两次退出；审批/帮助页同样生效"},
 	{"Ctrl+L", "清空对话显示"},
 	{"Ctrl+O", "展开/折叠工具输出"},
 	{"Ctrl+R", "只读重放当前会话"},

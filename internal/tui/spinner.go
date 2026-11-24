@@ -10,12 +10,17 @@ import (
 var brailleFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
 type spinnerTickMsg time.Time
+type noticeTickMsg struct{}
 
 // spinnerTick 每 100ms 触发一帧；只在忙碌时调度，空闲时不空转。
 func spinnerTick() tea.Cmd {
 	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
 		return spinnerTickMsg(t)
 	})
+}
+
+func noticeTick() tea.Cmd {
+	return tea.Tick(3*time.Second, func(time.Time) tea.Msg { return noticeTickMsg{} })
 }
 
 func (m *Model) spinnerFrame() string {

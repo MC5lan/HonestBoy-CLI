@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/core"
 	tea "github.com/charmbracelet/bubbletea"
@@ -146,9 +147,11 @@ func TestPaletteHighlightStaysVisible(t *testing.T) {
 	for i := 0; i < 8; i++ {
 		m.Update(tea.KeyMsg{Type: tea.KeyDown})
 	}
-	panel := stripANSI.ReplaceAllString(m.renderCommandPanel(m.slashSuggestions()), "")
-	if !strings.Contains(panel, "▸") || !strings.Contains(panel, "/diff") {
-		t.Fatalf("highlight scrolled out:\n%s", panel)
+	sug := m.slashSuggestions()
+	panel := stripANSI.ReplaceAllString(m.renderCommandPanel(sug), "")
+	selected := sug[m.paletteIdx].name
+	if !strings.Contains(panel, "▸") || !strings.Contains(panel, selected) {
+		t.Fatalf("highlight scrolled out (selected %s):\n%s", selected, panel)
 	}
 }
 
@@ -549,6 +552,75 @@ func TestStatusBarShowsEvidenceAndSession(t *testing.T) {
 	view := stripANSI.ReplaceAllString(m.View(), "")
 	if !strings.Contains(view, "证据 2") || !strings.Contains(view, "会话 s_01234567") {
 		t.Fatalf("status bar missing evidence/session:\n%s", view)
+	}
+}
+
+// info 通知 3 秒后从对话中移除；warn 通知保留。
+func TestInfoNoticeExpires(t *testing.T) {
+	m := NewModel(Config{Theme: "none"})
+	m.setSize(100, 40)
+	m.applyEvent(core.Event{Type: core.EvtNotice, Data: core.NoticeData{Level: "info", Text: "临时通知"}})
+	m.applyEvent(core.Event{Type: core.EvtNotice, Data: core.NoticeData{Level: "warn", Text: "重要警告"}})
+	if len(m.blocks) != 2 {
+		t.Fatalf("blocks = %d", len(m.blocks))
+	}
+	m.blocks[0].expires = time.Now().Add(-time.Second)
+	m.Update(noticeTickMsg{})
+	view := stripANSI.ReplaceAllString(m.View(), "")
+	if strings.Contains(view, "临时通知") || !strings.Contains(view, "重要警告") {
+		t.Fatalf("notice expiry wrong:\n%s", view)
+	}
+}
+
+// /theme 保存并立即切换；/reload 更新模型与主题。
+func TestThemeAndReload(t *testing.T) {
+	saved := ""
+	m := NewModel(Config{
+		Theme: "dark",
+		SaveTheme: func(name string) error {
+			saved = name
+			return nil
+		},
+		Reload: func() (Settings, error) {
+			return Settings{Model: "reloaded-model", Theme: "light"}, nil
+		},
+	})
+	m.setSize(100, 40)
+	m.runSlash("/theme", "/theme light", []string{"light"})
+	if m.th.Name != "light" || saved != "light" {
+		t.Fatalf("theme=%q saved=%q", m.th.Name, saved)
+	}
+	m.runSlash("/reload", "/reload", nil)
+	if m.cfg.Model != "reloaded-model" || m.th.Name != "light" {
+		t.Fatalf("reload model=%q theme=%q", m.cfg.Model, m.th.Name)
+	}
+}
+
+// /compact 必须真的请求下一回合压缩，而不是只提示。
+func TestCompactRequestsCompaction(t *testing.T) {
+	called := false
+	m := NewModel(Config{Theme: "none", Compact: func() { called = true }})
+	m.setSize(100, 40)
+	m.runSlash("/compact", "/compact", nil)
+	if !called {
+		t.Fatal("compact callback not called")
+	}
+}
+
+// 高危长命令默认截断，Ctrl+O 展开。
+func TestApprovalLongCommandExpands(t *testing.T) {
+	long := strings.Repeat("x", 600)
+	m := NewModel(Config{Theme: "none"})
+	m.setSize(100, 40)
+	m.Update(ApprovalAsk{Req: core.ApprovalRequest{Command: long, HighRisk: true}, Resp: make(chan core.ApprovalDecision, 1)})
+	before := stripANSI.ReplaceAllString(m.View(), "")
+	if !strings.Contains(before, "Ctrl+O 展开/折叠命令") {
+		t.Fatalf("expand hint missing:\n%s", before)
+	}
+	m.Update(tea.KeyMsg{Type: tea.KeyCtrlO})
+	after := stripANSI.ReplaceAllString(m.View(), "")
+	if strings.Count(after, "x") <= strings.Count(before, "x") {
+		t.Fatalf("ctrl+o did not expand command: before=%d after=%d", strings.Count(before, "x"), strings.Count(after, "x"))
 	}
 }
 

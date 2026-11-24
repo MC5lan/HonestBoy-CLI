@@ -47,6 +47,8 @@ type Config struct {
 	Tracer *core.Tracer
 	// ResumeID 非空时续接已有会话（事件与证据链追加到同一文件）。
 	ResumeID string
+	// HistoryLimit 是注入上一轮历史的 rune 上限；0 用默认 16000。
+	HistoryLimit int
 }
 
 // ResolveClient 按配置解析模型客户端；显式注入优先。
@@ -195,7 +197,11 @@ func (e *Engine) Run(ctx context.Context, prompt string) (<-chan core.Event, <-c
 			e.prepareUserChanges()
 		}
 
-		history := historyText(s, 16000)
+		historyLimit := e.cfg.HistoryLimit
+		if historyLimit <= 0 {
+			historyLimit = 16000
+		}
+		history := historyText(s, historyLimit)
 		terminal, err := e.runTurn(ctx, prompt, history)
 		if err != nil {
 			// 错误必须作为事件发出：TUI 只消费事件流，不读 errs channel。

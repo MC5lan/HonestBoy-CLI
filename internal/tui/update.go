@@ -21,6 +21,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.pending = &msg
 		m.approvalAt = time.Now()
+		m.approvalExpanded = false
 		m.state = stApproving
 		m.showHelp = false
 		m.showSessions = false
@@ -60,7 +61,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, waitForEvent(msg.runID, msg.ch)
 		}
 		m.applyEvent(msg.ev)
-		return m, waitForEvent(msg.runID, msg.ch)
+		cmd := waitForEvent(msg.runID, msg.ch)
+		if msg.ev.Type == core.EvtNotice {
+			if d, ok := msg.ev.Data.(core.NoticeData); ok && d.Level == "info" {
+				cmd = tea.Batch(cmd, noticeTick())
+			}
+		}
+		return m, cmd
 
 	case streamClosedMsg:
 		return m, m.onStreamClosed(msg.runID)
@@ -71,6 +78,23 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, spinnerTick()
 		}
 		return m, nil
+
+	case noticeTickMsg:
+		now := time.Now()
+		kept := m.blocks[:0]
+		changed := false
+		for _, b := range m.blocks {
+			if !b.expires.IsZero() && now.After(b.expires) {
+				changed = true
+				continue
+			}
+			kept = append(kept, b)
+		}
+		if changed {
+			m.blocks = kept
+			m.refreshView()
+		}
+		return m, nil
 	}
 	return m, nil
 }
@@ -78,9 +102,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
 
-	// Ctrl+C 在任何状态下都必须能中断或退出。
+	// Ctrl+C 在任何状态下都必须能中断；空闲时需要连按两次才退出。
 	if key == "ctrl+c" {
-		return m, m.cancel()
+		return m, m.handleCtrlC()
+	}
+	if key == "ctrl+o" && m.pending != nil {
+		m.approvalExpanded = !m.approvalExpanded
+		m.refreshView()
+		return m, nil
 	}
 	// 审批是当前最高优先级的交互；Esc 在审批里表示拒绝，而不是取消整个回合。
 	if m.pending != nil {
@@ -175,8 +204,12 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+r":
 		return m, m.replayCurrent()
 	case "ctrl+o":
-		m.verboseTools = !m.verboseTools
-		m.markToolsDirty()
+		if m.verboseTools {
+			m.verboseTools = false
+			m.markToolsDirty()
+			return m, nil
+		}
+		m.toggleLastTool()
 		return m, nil
 	case "ctrl+l":
 		m.blocks = nil
@@ -442,8 +475,12 @@ func (m *Model) applyEvent(ev core.Event) {
 		if !ok {
 			return
 		}
-		m.blocks = append(m.blocks, block{kind: blkNotice, content: d.Text, dirty: true,
-			meta: map[string]string{"level": d.Level}})
+		b := block{kind: blkNotice, content: d.Text, dirty: true,
+			meta: map[string]string{"level": d.Level}}
+		if d.Level == "info" {
+			b.expires = time.Now().Add(3 * time.Second)
+		}
+		m.blocks = append(m.blocks, b)
 		m.refreshView()
 	case core.EvtDiffReview:
 		if d, ok := ev.Data.(core.DiffReviewData); ok {
@@ -462,6 +499,10 @@ func (m *Model) applyEvent(ev core.Event) {
 			if d.PromptTokens > 0 {
 				m.promptTokens = int(d.PromptTokens)
 			}
+			m.ctxSystem = int(d.SystemTokens)
+			m.ctxHB = int(d.HBMTokens)
+			m.ctxHistory = int(d.HistoryTokens)
+			m.ctxTools = int(d.ToolTokens)
 		}
 	case core.EvtError:
 		d, ok := ev.Data.(core.ErrorData)

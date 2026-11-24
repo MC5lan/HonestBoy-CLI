@@ -79,9 +79,8 @@ func (e *Engine) runTurn(ctx context.Context, input, history string) (core.Termi
 		}
 		extra += "## 之前回合\n" + history
 	}
-	sys := AssembleContext(systemPrompt,
-		LoadProjectContext(e.cfg.Workdir, e.cfg.HBMDLimit),
-		EnvContext(e.cfg.Workdir), extra, "")
+	hbContext := LoadProjectContext(e.cfg.Workdir, e.cfg.HBMDLimit)
+	sys := AssembleContext(systemPrompt, hbContext, EnvContext(e.cfg.Workdir), extra, "")
 	if e.cfg.PlanMode {
 		sys = WithPlanRules(sys)
 	}
@@ -171,9 +170,19 @@ steps:
 		}
 		if stepUsage.In > 0 || stepUsage.Out > 0 {
 			e.usage.Add(stepUsage)
+			toolTokens := 0
+			for _, m := range messages {
+				if m.Role == "tool" {
+					toolTokens += core.TokenEstimate(m.Content)
+				}
+			}
 			e.emit(core.EvtUsage, core.UsageData{
 				TokensIn: int64(e.usage.In), TokensOut: int64(e.usage.Out),
 				CostMicros: e.usage.CostMicros, PromptTokens: int64(stepUsage.In),
+				SystemTokens:  int64(core.TokenEstimate(systemPrompt)),
+				HBMTokens:     int64(core.TokenEstimate(hbContext)),
+				HistoryTokens: int64(core.TokenEstimate(history)),
+				ToolTokens:    int64(toolTokens),
 			})
 		}
 		// 输出被 max_tokens 截断且没有任何工具调用：本步没有可执行结果，

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"strings"
+	"time"
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/core"
 	"github.com/MC5lan/HonestBoy-CLI/internal/tui/render"
@@ -32,6 +33,7 @@ type block struct {
 	meta      map[string]string
 	duration  int64
 	ok        bool
+	expires   time.Time // 非零表示 info 通知，到点后从对话中移除
 	// Markdown 增量渲染缓存：mdKey 是已渲染的稳定前缀字节数。
 	mdKey int
 	mdOut string
@@ -86,7 +88,7 @@ func (b *block) RenderWith(r *render.Renderer, width int, th theme.Theme, verbos
 		}
 		out = strings.TrimRight(b.content, "\n")
 	case blkTool:
-		expanded := verbose || !b.ok
+		expanded := verbose || !b.collapsed || !b.ok
 		action := core.ToolAction(b.meta["tool"], b.meta["args"])
 		out = render.ToolCard(action, b.meta["args"], b.content, b.ok, b.duration, width, !expanded)
 		if expanded {

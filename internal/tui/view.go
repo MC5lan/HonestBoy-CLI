@@ -85,8 +85,15 @@ func (m *Model) View() string {
 	case m.showSessions:
 		body = m.sessionsPage()
 	case len(m.blocks) == 0:
-		body = "  " + m.th.DimStyle().Render("输入任务开始，过程会显示在这个框里。") + "\n" +
-			"  " + m.th.DimStyle().Render("/ 命令面板 · ? 快捷键 · Enter 提交 · Alt+Enter 换行")
+		if m.cfg.Onboard {
+			body = "  " + m.th.AccentStyle().Render("首次使用，三步开始：") + "\n" +
+				"  " + m.th.DimStyle().Render("1. 退出后运行 hb init 配置端点、模型与密钥") + "\n" +
+				"  " + m.th.DimStyle().Render("2. 确认 HB_API_KEY 已在当前终端生效") + "\n" +
+				"  " + m.th.DimStyle().Render("3. 直接输入任务；/ 命令面板 · ? 快捷键")
+		} else {
+			body = "  " + m.th.DimStyle().Render("输入任务开始，过程会显示在这个框里。") + "\n" +
+				"  " + m.th.DimStyle().Render("/ 命令面板 · ? 快捷键 · Enter 提交 · Shift/Alt+Enter 换行")
+		}
 	}
 	body = clipLines(body, l.ViewHeight)
 
@@ -246,7 +253,11 @@ func (m *Model) statusBar() string {
 	if gap < 1 {
 		gap = 1
 	}
-	return m.th.DimStyle().Render(left+strings.Repeat(" ", gap)) + m.stateLabelStyle().Render(right)
+	leftStyle := m.th.DimStyle()
+	if m.contextPercent() < 15 {
+		leftStyle = m.th.WarnStyle()
+	}
+	return leftStyle.Render(left+strings.Repeat(" ", gap)) + m.stateLabelStyle().Render(right)
 }
 
 func (m *Model) stateLabel() string {

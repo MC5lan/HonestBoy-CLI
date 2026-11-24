@@ -17,6 +17,7 @@ type Approve struct {
 	Risk     string
 	HighRisk bool
 	Waited   time.Duration
+	Expanded bool // Ctrl+O：长命令展开
 }
 
 func (a *Approve) Render(width int, border lipgloss.Color) string {
@@ -53,7 +54,11 @@ func (a *Approve) Render(width int, border lipgloss.Color) string {
 	if contentWidth < 12 {
 		contentWidth = 12
 	}
-	cmdLines := wrapText(a.Command, contentWidth, 5)
+	maxLines := 5
+	if a.Expanded {
+		maxLines = 20
+	}
+	cmdLines := wrapText(a.Command, contentWidth, maxLines)
 	body := []string{title, "工具: " + tool + " · 风险: " + risk}
 	if a.Waited >= time.Second {
 		body = append(body, "已等待 "+a.Waited.Truncate(time.Second).String())
@@ -67,6 +72,9 @@ func (a *Approve) Render(width int, border lipgloss.Color) string {
 		}
 	}
 	body = append(body, "", keys)
+	if len(cmdLines) >= 5 {
+		body = append(body, "Ctrl+O 展开/折叠命令")
+	}
 	return borderStyle.Render(strings.Join(body, "\n"))
 }
 

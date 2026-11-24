@@ -90,6 +90,11 @@ type UsageData struct {
 	// PromptTokens 是最近一步实际发送的提示词 tokens（本轮累计 In 会重复计算历史，
 	// 不能用来表示上下文占用）。旧会话没有该字段时为 0。
 	PromptTokens int64
+	// 上下文明细是近似值，供 TUI 展示；不是计费依据。
+	SystemTokens  int64
+	HBMTokens     int64
+	HistoryTokens int64
+	ToolTokens    int64
 }
 type ErrorData struct {
 	Code, Message string

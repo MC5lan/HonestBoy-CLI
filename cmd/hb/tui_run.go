@@ -69,6 +69,7 @@ func runTUI(resumeID string) error {
 		}
 	}
 	var cancel context.CancelFunc
+	compactNext := false
 	keyEnv := cfg.APIKeyEnv
 	if keyEnv == "" {
 		keyEnv = "HB_API_KEY"
@@ -77,8 +78,14 @@ func runTUI(resumeID string) error {
 	run := func(prompt, sessionID string) (<-chan core.Event, <-chan error) {
 		ctx, c := context.WithCancel(context.Background())
 		cancel = c
+		historyLimit := 0
+		if compactNext {
+			historyLimit = 4000
+			compactNext = false
+		}
 		eng := engine.New(engine.Config{
-			Workdir: wd, Model: cfg.Model, Protocol: cfg.Protocol, BaseURL: cfg.BaseURL,
+			HistoryLimit: historyLimit,
+			Workdir:      wd, Model: cfg.Model, Protocol: cfg.Protocol, BaseURL: cfg.BaseURL,
 			APIKey: os.Getenv(keyEnv), Registry: registry, Store: sessionStore,
 			ResumeID:        sessionID,
 			Approval:        engine.ApprovalPolicy{Write: cfg.Approval.Write, Exec: cfg.Approval.Exec, Net: cfg.Approval.Net},
@@ -101,6 +108,21 @@ func runTUI(resumeID string) error {
 		cfg.Model = name
 		return store.Save(cfg)
 	}
+	reloadSettings := func() (tui.Settings, error) {
+		loaded, err := store.Load()
+		if err != nil {
+			return tui.Settings{}, err
+		}
+		cfg = loaded
+		return tui.Settings{
+			Model: cfg.Model, Protocol: cfg.Protocol, BaseURL: cfg.BaseURL, Theme: cfg.Theme,
+		}, nil
+	}
+	saveTheme := func(name string) error {
+		cfg.Theme = name
+		return store.Save(cfg)
+	}
+	requestCompact := func() { compactNext = true }
 
 	exec := func(cmd string, args []string, sessionID string) (string, error) {
 		switch cmd {
@@ -194,6 +216,7 @@ func runTUI(resumeID string) error {
 		ContextWindow: contextWindow, Protocol: cfg.Protocol, BaseURL: cfg.BaseURL,
 		SetModel: setModel, Exec: exec, Onboard: onboard,
 		ListSessions: listSessions, ResumeSession: resumeSession, ApprovePlan: approvePlan,
+		Reload: reloadSettings, SaveTheme: saveTheme, Compact: requestCompact,
 		SaveHistory: persistHistory,
 		Run:         run,
 		Cancel: func() {
