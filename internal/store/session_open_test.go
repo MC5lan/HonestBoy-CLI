@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -82,6 +83,74 @@ func TestListMarksSessionEnd(t *testing.T) {
 	}
 	if len(metas) != 1 || !metas[0].Ended {
 		t.Fatalf("metas = %+v", metas)
+	}
+}
+
+// TD05 E7：强杀留下的半行只出现在末片末尾，Load 应恢复到最后一个完整行。
+func TestLoadRecoversTruncatedTail(t *testing.T) {
+	root := t.TempDir()
+	paths := Paths{Root: root, Sessions: filepath.Join(root, "sessions"), Logs: filepath.Join(root, "logs")}
+	ss := NewSessionStore(paths)
+	sess := core.Session{ID: "s_tail", Cwd: root, CreatedAt: time.Now().UTC()}
+	if err := ss.Create(sess); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		if err := ss.AppendEvent(sess.Emit(core.EvtNotice, core.NoticeData{Level: "info", Text: fmt.Sprintf("e%d", i)})); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := ss.Unlock(); err != nil {
+		t.Fatal(err)
+	}
+	// 模拟写到一半崩了：最后一行只有前缀，没有闭合 JSON。
+	f, err := os.OpenFile(filepath.Join(paths.Sessions, "s_tail.jsonl"), os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = f.WriteString(`{"v":1,"kind":"event","event":{"type":"notice",`)
+	_ = f.Close()
+
+	loader := NewSessionStore(paths)
+	loaded, err := loader.Load("s_tail")
+	if err != nil {
+		t.Fatalf("truncated tail should be skipped: %v", err)
+	}
+	if len(loaded.Events) != 3 {
+		t.Fatalf("events = %d, want 3 (last full line)", len(loaded.Events))
+	}
+	if !loader.RecoveredTail {
+		t.Fatal("RecoveredTail should be set so callers can warn the user")
+	}
+}
+
+// 截断恢复不能放宽到"任意坏行都跳过"：中间行损坏必须报错。
+func TestLoadRejectsCorruptMiddleLine(t *testing.T) {
+	root := t.TempDir()
+	paths := Paths{Root: root, Sessions: filepath.Join(root, "sessions"), Logs: filepath.Join(root, "logs")}
+	ss := NewSessionStore(paths)
+	sess := core.Session{ID: "s_mid", Cwd: root, CreatedAt: time.Now().UTC()}
+	if err := ss.Create(sess); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		if err := ss.AppendEvent(sess.Emit(core.EvtNotice, core.NoticeData{Level: "info", Text: fmt.Sprintf("e%d", i)})); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_ = ss.Unlock()
+	path := filepath.Join(paths.Sessions, "s_mid.jsonl")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(string(raw), "\n")
+	lines[2] = `{"v":1,"kind":"event","event":` // 中间行损坏，后面还有完整行
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewSessionStore(paths).Load("s_mid"); err == nil {
+		t.Fatal("corrupt middle line must not be silently skipped")
 	}
 }
 

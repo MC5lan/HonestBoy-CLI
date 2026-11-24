@@ -226,6 +226,7 @@ func (c *AnthropicClient) stream(ctx context.Context, req Request, out chan<- Ch
 	tools := make(map[int]*anthropicToolBuf)
 	var order []int
 	var inputTokens, outputTokens int
+	sawStop := false
 
 	err = ParseSSE(resp.Body, func(event, data []byte) error {
 		if err := ctx.Err(); err != nil {
@@ -265,6 +266,7 @@ func (c *AnthropicClient) stream(ctx context.Context, req Request, out chan<- Ch
 			outputTokens = e.Usage.OutputTokens
 		case "message_stop":
 			// 流结束标志（没有 [DONE]）。
+			sawStop = true
 		case "ping":
 			// 心跳，忽略。
 		}
@@ -286,6 +288,9 @@ func (c *AnthropicClient) stream(ctx context.Context, req Request, out chan<- Ch
 		out <- Chunk{Call: &ToolCall{ID: buf.id, Name: buf.name, Args: args}}
 	}
 	out <- Chunk{Usage: &Usage{In: inputTokens, Out: outputTokens}}
+	if !sawStop {
+		out <- Chunk{Disconnected: true}
+	}
 	out <- Chunk{Done: true}
 	return nil
 }

@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -110,5 +111,84 @@ func TestListDir(t *testing.T) {
 	r, err := (NewListDirTool(sb)).Run(ctx, mustArgs(t, map[string]any{"path": "."}))
 	if err != nil || !r.OK || !strings.Contains(r.Output, "c.txt") {
 		t.Fatalf("list: %+v %v", r, err)
+	}
+}
+
+// TD05 E1：10MB 单行必须"拒绝并提示"，不能默默截断。
+func TestReadLineTooLong(t *testing.T) {
+	sb, _ := newTempSandbox(t)
+	guard := NewReadGuard()
+	ctx := context.Background()
+	huge := strings.Repeat("x", maxSingleLineSize+1)
+	if err := os.WriteFile(filepath.Join(sb.Workdir(), "one-line.txt"), []byte(huge), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r, err := NewReadFileTool(sb, guard).Run(ctx, mustArgs(t, map[string]any{"path": "one-line.txt"}))
+	if err != nil || r.OK || !strings.Contains(r.Output, "单行超过 1MB") {
+		t.Fatalf("line too long should be rejected: OK=%v out=%q err=%v", r.OK, r.Output, err)
+	}
+	// 普通长行仍然只截断并继续。
+	normal := strings.Repeat("y", maxLineChars+10) + "\nshort\n"
+	if err := os.WriteFile(filepath.Join(sb.Workdir(), "normal.txt"), []byte(normal), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r, err = NewReadFileTool(sb, guard).Run(ctx, mustArgs(t, map[string]any{"path": "normal.txt"}))
+	if err != nil || !r.OK || !strings.Contains(r.Output, "[line truncated]") {
+		t.Fatalf("normal long line should be truncated: OK=%v out=%q err=%v", r.OK, r.Output, err)
+	}
+}
+
+// TD04 F05：超过 100MB 的文件在读取前就被拒绝（稀疏文件，不占实际磁盘）。
+func TestReadFileTooLarge(t *testing.T) {
+	sb, _ := newTempSandbox(t)
+	ctx := context.Background()
+	f, err := os.Create(filepath.Join(sb.Workdir(), "huge.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Truncate(maxReadBytes + 1); err != nil {
+		f.Close()
+		t.Skipf("cannot create sparse file: %v", err)
+	}
+	_ = f.Close()
+	r, err := NewReadFileTool(sb, NewReadGuard()).Run(ctx, mustArgs(t, map[string]any{"path": "huge.bin"}))
+	if err != nil || r.OK || !strings.Contains(r.Output, "too large") {
+		t.Fatalf("huge file should be rejected: OK=%v out=%q err=%v", r.OK, r.Output, err)
+	}
+}
+
+// TD04 F12：list_dir 路径不存在必须报错而不是静默返回空列表。
+func TestListDirMissingPath(t *testing.T) {
+	sb, _ := newTempSandbox(t)
+	ctx := context.Background()
+	r, err := NewListDirTool(sb).Run(ctx, mustArgs(t, map[string]any{"path": "no-such-dir"}))
+	if err != nil || r.OK || !strings.Contains(r.Output, "目录不存在") {
+		t.Fatalf("missing dir should fail: OK=%v out=%q err=%v", r.OK, r.Output, err)
+	}
+	r, err = NewListDirTool(sb).Run(ctx, mustArgs(t, map[string]any{"path": "../outside"}))
+	if err != nil || r.OK || !strings.Contains(r.Output, "路径越界") {
+		t.Fatalf("escape should fail: OK=%v out=%q err=%v", r.OK, r.Output, err)
+	}
+}
+
+// TD05 E2：list_dir 超过 500 条时截断并提示缩小范围。
+func TestListDirTruncatesAt500(t *testing.T) {
+	sb, _ := newTempSandbox(t)
+	ctx := context.Background()
+	for i := 0; i < maxListEntries+5; i++ {
+		name := filepath.Join(sb.Workdir(), fmt.Sprintf("f%04d.txt", i))
+		if err := os.WriteFile(name, []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	r, err := NewListDirTool(sb).Run(ctx, mustArgs(t, map[string]any{"path": "."}))
+	if err != nil || !r.OK {
+		t.Fatalf("list: %+v %v", r, err)
+	}
+	if !strings.Contains(r.Output, "条目超过 500，请用 glob 缩小范围") {
+		t.Fatalf("missing truncation hint: %q", r.Output)
+	}
+	if got := strings.Count(r.Output, "\n") + 1; got > maxListEntries+1 {
+		t.Fatalf("listed %d entries, want <= %d", got, maxListEntries+1)
 	}
 }

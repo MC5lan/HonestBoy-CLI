@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/llm/testserver"
 )
@@ -55,8 +56,58 @@ func TestToWireTools(t *testing.T) {
 
 func TestResumePrompt(t *testing.T) {
 	m := ResumePrompt("已输出一半")
-	if m.Role != "user" || !strings.Contains(m.Content, "继续") {
+	if m.Role != "user" || !strings.Contains(m.Content, "继续") || !strings.Contains(m.Content, "已输出一半") {
 		t.Fatalf("resume message = %+v", m)
+	}
+	if m := ResumePrompt(""); strings.Contains(m.Content, "已输出的内容") {
+		t.Fatalf("empty partial should not be included: %+v", m)
+	}
+}
+
+// TD05 E5：模型吐出非法 UTF-8 时适配器必须净化成合法文本，不崩、不丢正常内容。
+func TestChatStreamInvalidUTF8(t *testing.T) {
+	srv := testserver.New(t, testserver.Script{
+		InvalidUTF8: true,
+		Responses:   [][]string{{chatChunk("%BAD%乱码")}},
+	})
+	c := NewChatClient(srv.URL, "", "m")
+	chunks, errs := c.Stream(context.Background(), Request{})
+	var text string
+	for ch := range chunks {
+		text += ch.Text
+	}
+	if err := <-errs; err != nil {
+		t.Fatal(err)
+	}
+	if !utf8.ValidString(text) || !strings.Contains(text, "乱码") {
+		t.Fatalf("invalid utf8 not sanitized: %q", text)
+	}
+}
+
+// TD04 F25：SSE 中途断连（没有 [DONE]）不能 panic 或报错，按已收到内容收尾。
+func TestChatDisconnectNoPanic(t *testing.T) {
+	srv := testserver.New(t, testserver.Script{
+		Responses:    [][]string{{chatChunk("前半"), chatChunk("后半")}},
+		DisconnectAt: 1, // 发完第一块就断开，也不会写 [DONE]
+	})
+	c := NewChatClient(srv.URL, "", "m")
+	chunks, errs := c.Stream(context.Background(), Request{})
+	var text string
+	disconnected := false
+	for ch := range chunks {
+		text += ch.Text
+		if ch.Disconnected {
+			disconnected = true
+		}
+	}
+	if err := <-errs; err != nil {
+		t.Fatalf("disconnect should be tolerated: %v", err)
+	}
+	if !strings.Contains(text, "前半") || strings.Contains(text, "后半") {
+		t.Fatalf("unexpected partial text: %q", text)
+	}
+	if !disconnected {
+		t.Fatal("missing Disconnected signal for engine resume")
 	}
 }
 

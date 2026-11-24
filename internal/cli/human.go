@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/core"
+	"github.com/MC5lan/HonestBoy-CLI/internal/errs"
 )
 
 var jsonErrorRe = regexp.MustCompile(`\{"error"\s*:.*`)
@@ -163,6 +164,14 @@ func friendlyError(msg string) string {
 			default:
 				return inner
 			}
+		}
+	}
+	// Go/Windows 的传输层错误不带 JSON，也要给同样的可执行建议。
+	lower := strings.ToLower(msg)
+	if strings.Contains(lower, "dial tcp") || strings.Contains(lower, "connection refused") ||
+		strings.Contains(lower, "no such host") || strings.Contains(lower, "connectex") {
+		if advice, ok := errs.Explain(string(errs.NetUnavailable)); ok {
+			return advice
 		}
 	}
 	return msg

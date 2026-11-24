@@ -42,7 +42,7 @@ type Config struct {
 	MaxOutputTokens int
 	// ReasoningEffort 是思考强度（low/high/max）；空表示用提供方默认。
 	ReasoningEffort string
-	// Rigor 是质量契约等级：normal | strict。
+	// Rigor 是质量契约等级。契约常开，固定按 strict 处理；normal 仅为旧配置兼容。
 	Rigor  string
 	Tracer *core.Tracer
 	// ResumeID 非空时续接已有会话（事件与证据链追加到同一文件）。
@@ -111,7 +111,7 @@ func New(cfg Config) *Engine {
 		}
 	}
 	if cfg.Rigor == "" {
-		cfg.Rigor = "normal"
+		cfg.Rigor = "strict"
 	}
 	if cfg.ContextWindow > 0 && cfg.MaxOutputTokens > cfg.ContextWindow/2 {
 		cfg.MaxOutputTokens = cfg.ContextWindow / 2

@@ -299,3 +299,121 @@ func TestBinaryUntestedExit(t *testing.T) {
 		t.Fatalf("untested terminal not reported:\n%s", text)
 	}
 }
+
+// 断流后续写：第一段没有 [DONE]，引擎应注入续写提示并在同一回合拿到第二段。
+func TestBinaryResumeAfterDisconnect(t *testing.T) {
+	skipUnlessE2E(t)
+	root := moduleRoot(t)
+	bin := buildBinary(t, root)
+	srv := testserver.New(t, testserver.Script{
+		Responses: [][]string{
+			{chatDelta("前半段"), chatDelta("")}, // 第二块用作断点位，不会被写出
+			{chatDelta("后半段")},
+		},
+		DisconnectAt: 1, // 发完第一块就断开，不写 [DONE]
+	})
+	home := t.TempDir()
+	writeConfig(t, home, srv.URL)
+	work := t.TempDir()
+	cmd := exec.Command(bin, "run", "--cwd", work, "续写")
+	cmd.Env = append(isolatedEnv(t, root), "LOCALAPPDATA="+home)
+	out, err := cmd.CombinedOutput()
+	if err != nil && exitCode(err) != 3 {
+		t.Fatalf("run failed: %v\n%s", err, out)
+	}
+	text := string(out)
+	if !strings.Contains(text, "前半段") || !strings.Contains(text, "后半段") {
+		t.Fatalf("resume did not stitch both halves:\n%s", text)
+	}
+	if !strings.Contains(text, "连接中断") {
+		t.Fatalf("missing disconnect notice:\n%s", text)
+	}
+	if n := srv.RequestCount(); n != 2 {
+		t.Fatalf("model requests = %d, want 2", n)
+	}
+}
+
+// TD04 F20 真实测量：端点连不上时退出 6，且提示可执行（不是裸 dial 错误）。
+func TestBinaryNetworkDownMessage(t *testing.T) {
+	skipUnlessE2E(t)
+	root := moduleRoot(t)
+	bin := buildBinary(t, root)
+	home := t.TempDir()
+	writeConfig(t, home, "http://127.0.0.1:9")
+	work := t.TempDir()
+	cmd := exec.Command(bin, "run", "--cwd", work, "你好")
+	cmd.Env = append(isolatedEnv(t, root), "LOCALAPPDATA="+home)
+	out, err := cmd.CombinedOutput()
+	if err == nil || exitCode(err) != 6 {
+		t.Fatalf("exit = %v, want 6:\n%s", err, out)
+	}
+	text := string(out)
+	if !strings.Contains(text, "base_url") || !strings.Contains(text, "hb doctor") {
+		t.Fatalf("network error not actionable:\n%s", text)
+	}
+	if strings.Contains(text, "dial tcp") {
+		t.Fatalf("raw dial error leaked:\n%s", text)
+	}
+}
+
+// TD05 E1 真实测量：10MB 单行文件被 read_file 拒绝并给出可执行提示。
+func TestBinaryHugeSingleLine(t *testing.T) {
+	skipUnlessE2E(t)
+	root := moduleRoot(t)
+	bin := buildBinary(t, root)
+	srv := testserver.New(t, testserver.Script{Responses: [][]string{
+		{chatTool(0, "r1", "read_file", `{"path":"one-line.txt"}`)},
+		{chatDelta("读不了")},
+	}})
+	home := t.TempDir()
+	writeConfig(t, home, srv.URL)
+	work := t.TempDir()
+	big := strings.Repeat("x", 10<<20)
+	if err := os.WriteFile(filepath.Join(work, "one-line.txt"), []byte(big), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(bin, "run", "--cwd", work, "读文件")
+	cmd.Env = append(isolatedEnv(t, root), "LOCALAPPDATA="+home)
+	out, err := cmd.CombinedOutput()
+	// untested（退出 3）是合法终态：工具失败后模型没有证据，不应假装完成。
+	if err != nil && exitCode(err) != 3 {
+		t.Fatalf("run failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "单行超过 1MB") {
+		t.Fatalf("huge single line not rejected with hint:\n%s", out)
+	}
+}
+
+// TD04 F07 真实测量：只读文件写入失败时给出提示，不崩溃。
+func TestBinaryReadOnlyFile(t *testing.T) {
+	skipUnlessE2E(t)
+	root := moduleRoot(t)
+	bin := buildBinary(t, root)
+	srv := testserver.New(t, testserver.Script{Responses: [][]string{
+		{chatTool(0, "r1", "read_file", `{"path":"locked.txt"}`)},
+		{chatDelta("[SELF]\nconf: high\nmissing: none\nassumption: none\n"), chatTool(0, "w1", "write_file", `{"path":"locked.txt","content":"changed"}`)},
+		{chatDelta("写不进去")},
+	}})
+	home := t.TempDir()
+	writeConfig(t, home, srv.URL)
+	work := t.TempDir()
+	locked := filepath.Join(work, "locked.txt")
+	if err := os.WriteFile(locked, []byte("original"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(locked, 0o400); err != nil {
+		t.Skipf("cannot set read-only: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o600) })
+	cmd := exec.Command(bin, "run", "--cwd", work, "改文件")
+	cmd.Env = append(isolatedEnv(t, root), "LOCALAPPDATA="+home)
+	out, err := cmd.CombinedOutput()
+	if err != nil && exitCode(err) != 3 {
+		t.Fatalf("run failed: %v\n%s", err, out)
+	}
+	text := string(out)
+	t.Logf("只读文件实测输出:\n%s", text)
+	if !strings.Contains(text, "失败") && !strings.Contains(text, "拒绝") && !strings.Contains(text, "权限") && !strings.Contains(text, "只读") {
+		t.Fatalf("read-only failure not surfaced:\n%s", text)
+	}
+}

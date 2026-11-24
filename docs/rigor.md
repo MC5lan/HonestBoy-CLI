@@ -5,13 +5,15 @@
 
 ## 使用
 
+质量契约**常开**，不需要配置。旧配置里的 `rigor: normal` 会被收敛为 `strict`，且不能通过命令关闭：
+
 ```powershell
-hb config set rigor strict    # 启用质量契约
-hb config get rigor
-hb config set rigor normal    # 关闭
+hb config get rigor           # strict
+hb config set rigor strict    # 兼容写法，仍是 strict
+hb config set rigor normal    # 报错：质量契约已常开，不能关闭
 ```
 
-严格模式只影响三处：
+质量契约只影响三处：
 
 1. system prompt 追加 `RigorPromptFragment`（`internal/core/rigor.go`）。
 2. 写文件后扫描新增内容里的 `TODO` / `FIXME` / `not implemented` 等占位符；
@@ -50,4 +52,4 @@ hb config set rigor normal    # 关闭
 - 最终说明保持简洁；不创建与任务无关的文件或文档。
 ```
 
-严格模式是**质量层**，不是新的完成判据。`done` 仍然只能由 Gate 根据可接地证据写入。
+质量契约是**常开的质量层**，不是新的完成判据。`done` 仍然只能由 Gate 根据可接地证据写入。

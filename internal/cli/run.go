@@ -126,8 +126,11 @@ func RunRun(opts GlobalOptions, args []string) error {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return ErrInterrupted
 		}
-		fmt.Fprintln(os.Stderr, "hb:", err)
-		return fmt.Errorf("%w: %v", ErrEnvironment, err)
+		if opts.Debug {
+			fmt.Fprintln(os.Stderr, "hb:", err)
+		}
+		// 保留底层原因（如 *llm.RetryableError），FriendlyError 才能给出可执行建议。
+		return fmt.Errorf("%w: %w", ErrEnvironment, err)
 	}
 	if !seenTurnEnd {
 		return ErrEnvironment

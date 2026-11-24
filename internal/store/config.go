@@ -23,7 +23,7 @@ type Config struct {
 	Timeout   string `json:"timeout"`
 	// Workdir 是默认工作区（沙箱边界）；空表示使用进程当前目录。
 	Workdir string `json:"workdir,omitempty"`
-	// Rigor 是质量契约等级：normal | strict。
+	// Rigor 是质量契约等级。契约常开，固定为 strict；normal 仅为旧配置兼容。
 	Rigor string `json:"rigor,omitempty"`
 	// MaxOutputTokens 是单次输出预算；0 表示按思考强度自动（64k / 128k）。
 	MaxOutputTokens int `json:"max_output_tokens,omitempty"`
@@ -62,7 +62,8 @@ type Config struct {
 }
 
 func DefaultConfig() Config {
-	c := Config{SchemaVersion: 1, Protocol: "openai-chat", APIKeyEnv: "HB_API_KEY", Shell: "cmd", Theme: "auto", MaxTurns: 20, Timeout: "10m", Rigor: "normal"}
+	// Rigor 常开：默认 strict，normal 不再表示关闭。
+	c := Config{SchemaVersion: 1, Protocol: "openai-chat", APIKeyEnv: "HB_API_KEY", Shell: "cmd", Theme: "auto", MaxTurns: 20, Timeout: "10m", Rigor: "strict"}
 	c.Context.BudgetRatio = 0.7
 	c.Context.KeepRecent = 2
 	c.Context.HBMDLimit = 16384
@@ -102,6 +103,10 @@ func Load() (Config, error) {
 	}
 	if c.SchemaVersion > 1 {
 		return c, errors.New("config schema too new")
+	}
+	// 旧配置里的 rigor=normal 不再表示关闭；运行时统一收敛到 strict。
+	if c.Rigor != "strict" {
+		c.Rigor = "strict"
 	}
 	// 缺失字段由 DefaultConfig 补齐，并回写一次 _migrated 标记。
 	changed := false

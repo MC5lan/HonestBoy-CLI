@@ -18,11 +18,12 @@ import (
 )
 
 const (
-	maxReadBytes     = 100 << 20 // 100MB，超过直接拒绝
-	maxLineChars     = 2000
-	defaultReadLines = 2000
-	maxListEntries   = 500
-	maxListDepth     = 4
+	maxReadBytes      = 100 << 20 // 100MB，超过直接拒绝
+	maxSingleLineSize = 1 << 20   // 单行 1MB，超过拒绝（TD05 E1：10MB 单行文件）
+	maxLineChars      = 2000
+	defaultReadLines  = 2000
+	maxListEntries    = 500
+	maxListDepth      = 4
 )
 
 var ignoredDirs = map[string]bool{
@@ -117,6 +118,11 @@ func (t *ReadFileTool) Run(ctx context.Context, args json.RawMessage) (Result, e
 	}
 	for i := a.Offset; i < end; i++ {
 		line := strings.TrimSuffix(lines[i], "\r")
+		if len(line) > maxSingleLineSize {
+			// 单行超过 1MB 直接拒绝，不能默默截断成一行——TD05 要求"拒绝并提示"。
+			return failResult(ErrLineTooLong.Error() + ": 单行超过 1MB，已拒绝读取；" +
+				"请先用 shell 把它切分成正常换行的文件，或有针对性地处理该行。")
+		}
 		if len([]rune(line)) > maxLineChars {
 			line = string([]rune(line)[:maxLineChars]) + " [line truncated]"
 		}
@@ -181,27 +187,29 @@ func (t *WriteFileTool) Run(ctx context.Context, args json.RawMessage) (Result, 
 		content = strings.ReplaceAll(content, "\n", "\r\n")
 	}
 	tmp := a.Path + ".tmp-" + hex.EncodeToString([]byte(fmt.Sprint(time.Now().UnixNano())))[:8]
+	// 错误码放在 OS 原文前：CLI 只显示前 70 字符，可操作建议不能被截掉。
+	const ioAdvice = "（HB-IO-001：检查路径权限、只读属性与剩余空间）"
 	f, err := t.sb.Create(tmp)
 	if err != nil {
-		return failResult("创建临时文件失败: " + err.Error())
+		return failResult("创建临时文件失败" + ioAdvice + ": " + err.Error())
 	}
 	if _, err = f.WriteString(content); err != nil {
 		f.Close()
 		t.sb.Remove(tmp)
-		return failResult("写入失败: " + err.Error())
+		return failResult("写入失败" + ioAdvice + ": " + err.Error())
 	}
 	if err = f.Sync(); err != nil {
 		f.Close()
 		t.sb.Remove(tmp)
-		return failResult("同步失败: " + err.Error())
+		return failResult("同步失败" + ioAdvice + ": " + err.Error())
 	}
 	if err = f.Close(); err != nil {
 		t.sb.Remove(tmp)
-		return failResult("关闭失败: " + err.Error())
+		return failResult("关闭失败" + ioAdvice + ": " + err.Error())
 	}
 	if err = t.sb.Rename(tmp, a.Path); err != nil {
 		t.sb.Remove(tmp)
-		return failResult("原子替换失败: " + err.Error())
+		return failResult("原子替换失败" + ioAdvice + ": " + err.Error())
 	}
 	t.guard.MarkRead(a.Path, []byte(content))
 	before := ""
@@ -254,6 +262,18 @@ func (t *ListDirTool) Run(ctx context.Context, args json.RawMessage) (Result, er
 	}
 	if !a.Recursive {
 		a.MaxDepth = 1
+	}
+	// 路径不存在/越界/不是目录必须给可执行提示；旧实现直接静默返回空列表。
+	rel, err := t.sb.Rel(a.Path)
+	if err != nil {
+		return failResult("路径越界: " + err.Error() + "。请使用工作区内的相对路径。")
+	}
+	info, err := os.Stat(filepath.Join(t.sb.Workdir(), rel))
+	if err != nil {
+		return failResult("目录不存在或无法访问: " + a.Path + "。先用 list_dir . 查看当前目录。")
+	}
+	if !info.IsDir() {
+		return failResult("这不是目录，请用 read_file 读取: " + a.Path)
 	}
 	var lines []string
 	truncated := false

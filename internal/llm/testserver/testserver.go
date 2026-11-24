@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -54,6 +55,10 @@ func New(t *testing.T, script Script) *Server {
 		for j, payload := range s.script.Responses[i] {
 			if s.script.DisconnectAt > 0 && j == s.script.DisconnectAt {
 				return
+			}
+			if s.script.InvalidUTF8 {
+				// 把占位符换成真正的非法字节，模拟模型吐出乱码（适配器会 SanitizeUTF8）。
+				payload = strings.ReplaceAll(payload, "%BAD%", string([]byte{0xff, 0xfe}))
 			}
 			fmt.Fprintf(w, "data: %s\n\n", payload)
 			if flusher != nil {

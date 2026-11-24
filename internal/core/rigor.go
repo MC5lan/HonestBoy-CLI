@@ -1,9 +1,6 @@
 package core
 
-import (
-	"regexp"
-	"strings"
-)
+import "regexp"
 
 // RigorPromptFragment 是 strict 模式追加到 system prompt 的质量契约。
 // 只吸收提示词工程里与现有架构兼容的部分：完整性、边界、最小改动、验证优先。
@@ -47,7 +44,10 @@ func PlaceholderWarnings(text string) []string {
 	return out
 }
 
-// RigorEnabled 判断是否启用了严格质量契约。
+// RigorEnabled 判断质量契约是否启用。
+// 质量契约常开：无论配置是 strict、normal、空还是旧值，都返回 true。
+// 保留 level 参数只为兼容旧配置与调用方；normal 不再表示关闭。
 func RigorEnabled(level string) bool {
-	return strings.EqualFold(strings.TrimSpace(level), "strict")
+	_ = level // 常开：忽略配置值，normal 不再表示关闭
+	return true
 }

@@ -29,12 +29,13 @@ type Request struct {
 }
 
 type Chunk struct {
-	Text      string
-	Reasoning string // 思考内容（DeepSeek reasoning_content）
-	Call      *ToolCall
-	Usage     *Usage
-	Done      bool
-	Truncated bool // finish_reason=length：本步输出被 max_tokens 截断
+	Text         string
+	Reasoning    string // 思考内容（DeepSeek reasoning_content）
+	Call         *ToolCall
+	Usage        *Usage
+	Done         bool
+	Truncated    bool // finish_reason=length：本步输出被 max_tokens 截断
+	Disconnected bool // 流未收到正常结束标志就 EOF；引擎据此注入续写提示
 }
 
 type ToolSpec struct {

@@ -24,6 +24,8 @@ var sessionMaxBytes int64 = 50 << 20
 var (
 	ErrSessionNotFound = errors.New("session not found")
 	ErrSessionLocked   = errors.New("session is locked by another process")
+	// errTruncatedTail 只用于标记 jsonl 尾行被截断（强杀/写一半），由 Load 决定是否跳过。
+	errTruncatedTail = errors.New("truncated jsonl tail")
 )
 
 type jsonlLine struct {
@@ -53,6 +55,8 @@ type SessionStore struct {
 	sessionID string
 	part      int // 当前写入分片，从 1 开始
 	lock      *flock.Flock
+	// RecoveredTail 标记最近一次 Load 是否跳过了被截断的尾行，调用方可据此提示用户。
+	RecoveredTail bool
 }
 
 func NewSessionStore(p Paths) *SessionStore { return &SessionStore{Paths: p} }
@@ -206,54 +210,79 @@ func (s *SessionStore) AppendReceipt(r core.Receipt) error {
 	return s.appendLine(s.sessionID, jsonlLine{V: schemaVersion, Kind: "receipt", Receipt: raw})
 }
 
+// applyLine 解析一条完整 jsonl 行并并入 Session。
+// 外层 JSON 损坏标记为 errTruncatedTail，由 Load 判断能否作为尾行跳过。
+func (s *SessionStore) applyLine(sess *core.Session, line []byte) error {
+	var w jsonlLine
+	if err := json.Unmarshal(line, &w); err != nil {
+		// 保留原有错误文案，同时挂上标记供 Load 判断能否作为尾行跳过。
+		return fmt.Errorf("bad jsonl line: %w (%w)", err, errTruncatedTail)
+	}
+	if w.V > schemaVersion {
+		return fmt.Errorf("schema version %d newer than supported %d", w.V, schemaVersion)
+	}
+	switch w.Kind {
+	case "meta":
+		sess.ID, sess.Cwd, sess.CreatedAt = w.ID, w.Cwd, w.CreatedAt
+	case "event":
+		ev, err := core.UnmarshalEvent(w.Event)
+		if err != nil {
+			return err
+		}
+		sess.Events = append(sess.Events, ev)
+		if ev.Seq > sess.Seq() {
+			sess.SetSeq(ev.Seq)
+		}
+	case "receipt":
+		var r core.Receipt
+		if err := json.Unmarshal(w.Receipt, &r); err != nil {
+			return err
+		}
+		sess.Receipts = append(sess.Receipts, r)
+	}
+	return nil
+}
+
 // Load 从 jsonl 全部分片重建 Session（事件按 Type 分派为具体结构）。
+// 强杀可能留下半行：只跳过"最后一个分片的最后一行"且仅当外层 JSON 解析失败，
+// 其余位置的损坏仍然报错，避免把中途损坏误判成截断。
 func (s *SessionStore) Load(id string) (*core.Session, error) {
 	parts := s.parts(id)
 	if len(parts) == 0 {
 		return nil, ErrSessionNotFound
 	}
+	s.RecoveredTail = false
 	sess := &core.Session{ID: id}
-	for _, path := range parts {
+	for partIdx, path := range parts {
 		f, err := os.Open(path)
 		if err != nil {
 			return nil, err
 		}
 		scanner := bufio.NewScanner(f)
 		scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
+		var pending []byte // 暂存上一行，确认后面还有行才解析它
 		for scanner.Scan() {
 			line := scanner.Bytes()
 			if len(strings.TrimSpace(string(line))) == 0 {
 				continue
 			}
-			var w jsonlLine
-			if err := json.Unmarshal(line, &w); err != nil {
-				f.Close()
-				return nil, fmt.Errorf("bad jsonl line: %w", err)
-			}
-			if w.V > schemaVersion {
-				f.Close()
-				return nil, fmt.Errorf("schema version %d newer than supported %d", w.V, schemaVersion)
-			}
-			switch w.Kind {
-			case "meta":
-				sess.ID, sess.Cwd, sess.CreatedAt = w.ID, w.Cwd, w.CreatedAt
-			case "event":
-				ev, err := core.UnmarshalEvent(w.Event)
-				if err != nil {
+			if pending != nil {
+				if err := s.applyLine(sess, pending); err != nil {
 					f.Close()
 					return nil, err
 				}
-				sess.Events = append(sess.Events, ev)
-				if ev.Seq > sess.Seq() {
-					sess.SetSeq(ev.Seq)
-				}
-			case "receipt":
-				var r core.Receipt
-				if err := json.Unmarshal(w.Receipt, &r); err != nil {
+			}
+			pending = append(pending[:0], line...)
+		}
+		if pending != nil {
+			if err := s.applyLine(sess, pending); err != nil {
+				// 只有末片的尾行截断可以恢复；中间分片或中间行的损坏必须报错。
+				if partIdx == len(parts)-1 && errors.Is(err, errTruncatedTail) {
+					s.RecoveredTail = true
+				} else {
 					f.Close()
 					return nil, err
 				}
-				sess.Receipts = append(sess.Receipts, r)
 			}
 		}
 		err = scanner.Err()

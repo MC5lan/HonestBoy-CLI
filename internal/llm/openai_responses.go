@@ -201,6 +201,7 @@ func (c *ResponsesClient) stream(ctx context.Context, req Request, out chan<- Ch
 	var order []string
 	var usage *Usage
 	var streamErr error
+	sawCompleted := false
 
 	err = ParseSSE(resp.Body, func(_, data []byte) error {
 		if err := ctx.Err(); err != nil {
@@ -258,6 +259,7 @@ func (c *ResponsesClient) stream(ctx context.Context, req Request, out chan<- Ch
 				}
 			}
 		case "response.completed":
+			sawCompleted = true
 			usage = &Usage{In: e.Response.Usage.InputTokens, Out: e.Response.Usage.OutputTokens}
 		case "response.failed", "response.incomplete", "error":
 			msg := e.Message
@@ -292,6 +294,9 @@ func (c *ResponsesClient) stream(ctx context.Context, req Request, out chan<- Ch
 	}
 	if usage != nil {
 		out <- Chunk{Usage: usage}
+	}
+	if !sawCompleted && streamErr == nil {
+		out <- Chunk{Disconnected: true}
 	}
 	out <- Chunk{Done: true}
 	return streamErr

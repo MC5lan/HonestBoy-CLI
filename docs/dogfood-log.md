@@ -59,6 +59,28 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
 37. M4 收尾：配置缺失字段自动回写 `_migrated`；脱敏样本扩到 10 个并补 `sk_live_`/`sk_test_`。
 38. M5 性能：`hb --version` 57–64ms；1000 事件恢复 9.8ms；50 轮 TUI 堆增长 <50MB。
     10 万文件搜索、30 失败场景/7 极端输入、golangci/deadcode 与陌生人测试仍未完成。
+39. M5 TD04/TD05 静态盘点：新增 `docs/failure-scenarios.md`，盘点 92 个测试文件/326 个测试函数，
+    建立 30 条失败场景与 7 类极端输入的「场景 → 测试/实测」映射，避免重复造测试。发现 7 个缺口：
+    ① 会话文件截断时 `Load` 直接报 `bad jsonl line`，不恢复到最后完整行；
+    ② 10MB 单行文件是截断而非"拒绝并提示"；③ shell 超时无 `-v` 建议；
+    ④ 乱码/emoji 缺引擎级端到端断言；⑤ `list_dir` 500 条截断无测试；
+    ⑥ `list_dir` 路径不存在静默返回空列表；⑦ SSE 断连无测试（`DisconnectAt` 字段闲置）。
+    当时未找到 Go 工具链（随后在 #40 定位到 `D:\win7harness\go-toolchain` 并复跑），
+    磁盘满/只读/权限/断网/10 分钟/百万文件仍需实机演练。
+40. M5 TD04/TD05 缺口修复（G1–G7）：会话 jsonl 末行截断只跳过末片尾行并置 `RecoveredTail`，中间损坏仍报错；
+    `read_file` 单行 >1MB 改为拒绝并提示；shell 超时提示补 `-v`/`timeout_ms`；`testserver.InvalidUTF8` 实装，
+    引擎在事件边界二次净化非法 UTF-8；`list_dir` 路径不存在/越界改为可执行提示、500 条截断补测试；
+    >100MB 文件与 SSE 断连补测试。找到 Go 1.27.4（D:\win7harness\go-toolchain），
+    `go test ./... -count=1` 全绿，12 条新增/修正测试逐条通过；真实环境项仍未演练。
+41. M5 断流续写与实测：三个适配器在缺少结束标志时发 `Disconnected`，引擎追加已输出内容 + `ResumePrompt`
+    后同回合续写，最多 2 次；真实二进制实测断网（退出 6，提示 base_url/HTTPS_PROXY/hb doctor，不再泄漏裸 dial 文本）、
+    10MB 单行（拒绝并提示）、只读文件（`HB-IO-001` 建议置顶，避免被 70 字截断）。
+    50 万字输出实测：100 片 × 5000 字，678ms、内存峰值 34–41MB，终态 untested 不崩溃；
+    断流续写真实二进制 e2e 通过（两段拼接 + "连接中断"提示 + 2 次请求）。
+    磁盘满需管理员、权限 ACL/百万文件/10 分钟未执行，已在 `failure-scenarios.md` 记录原因。
+42. 质量契约改常开：默认 `rigor=strict`，旧配置的 `normal` 在 Load 时收敛为 strict，
+    `RigorEnabled` 恒为 true（normal/空/未知值都不能关闭），`hb config set rigor normal` 明确报错，
+    `hb config list/get` 显示 `strict（常开）`。新增 `TestRigorAlwaysOn` 验证旧配置下仍注入质量契约。
 
 ## 2026-11-23
 

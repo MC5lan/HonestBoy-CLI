@@ -3,12 +3,22 @@ package cli
 import (
 	"errors"
 	"strings"
+
+	"github.com/MC5lan/HonestBoy-CLI/internal/errs"
+	"github.com/MC5lan/HonestBoy-CLI/internal/llm"
 )
 
 // FriendlyError 把 CLI 错误转成普通人能看懂的话（不带技术前缀）。
 func FriendlyError(err error) string {
 	if err == nil {
 		return ""
+	}
+	// 网络/连接失败必须给出 HB-NET-001 的处置建议，而不是裸 dial 错误。
+	var re *llm.RetryableError
+	if errors.As(err, &re) && re.Status < 400 {
+		if advice, ok := errs.Explain(string(errs.NetUnavailable)); ok {
+			return advice
+		}
 	}
 	switch {
 	case errors.Is(err, ErrEnvironment):

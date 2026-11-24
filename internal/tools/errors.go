@@ -13,5 +13,6 @@ var (
 	ErrNoMatch           = errors.New("no match found")
 	ErrBinaryFile        = errors.New("binary file")
 	ErrFileTooLarge      = errors.New("file too large")
-	ErrCommandTimeout    = errors.New("command timeout")
+	ErrLineTooLong       = errors.New("line too long")
+	ErrCommandTimeout    = errors.New("command timeout: 命令超时；可给命令加 -v 输出进度，或用 timeout_ms 延长超时")
 )

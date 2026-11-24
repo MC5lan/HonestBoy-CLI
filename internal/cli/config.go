@@ -43,7 +43,7 @@ func RunConfig(opts GlobalOptions, args []string) error {
 			outTokens = formatK(cfg.MaxOutputTokens)
 		}
 		fmt.Fprintf(os.Stdout, "max_output     = %s\n", outTokens)
-		fmt.Fprintf(os.Stdout, "rigor          = %s\n", firstNonEmpty(cfg.Rigor, "normal"))
+		fmt.Fprintf(os.Stdout, "rigor          = strict (常开)\n")
 		fmt.Fprintf(os.Stdout, "context.window = %d (%s)\n", cfg.Context.Window, formatK(cfg.Context.Window))
 		fmt.Fprintf(os.Stdout, "approval.write = %s\n", cfg.Approval.Write)
 		fmt.Fprintf(os.Stdout, "approval.exec  = %s\n", cfg.Approval.Exec)
@@ -103,7 +103,7 @@ func configField(c store.Config, key string) (string, bool) {
 	case "reasoning_effort":
 		return c.ReasoningEffort, true
 	case "rigor":
-		return c.Rigor, true
+		return "strict", true
 	case "max_output_tokens":
 		if c.MaxOutputTokens <= 0 {
 			return "auto", true
@@ -171,8 +171,10 @@ func setConfigField(c *store.Config, key, value string) error {
 		}
 	case "rigor":
 		switch strings.ToLower(value) {
-		case "normal", "strict":
-			c.Rigor = strings.ToLower(value)
+		case "strict", "always", "on":
+			c.Rigor = "strict"
+		case "normal", "off":
+			return fmt.Errorf("质量契约已常开，不能关闭；rigor 固定为 strict")
 		default:
 			return ErrUsage
 		}

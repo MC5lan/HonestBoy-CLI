@@ -1,6 +1,23 @@
 # 变更记录
 
-## Unreleased
+## v0.2.0（2026-11-25）
+
+### 质量契约常开
+
+- 默认配置改为 `rigor=strict`；旧配置里的 `rigor=normal` 在加载时收敛为 strict，运行时不再能关闭。
+- `hb config set rigor normal` 返回明确错误；`hb config list/get` 显示 `strict（常开）`。
+- 每次运行都会注入质量契约提示，并对写入内容做 TODO/FIXME/占位符检查（Gate 仍只认证据）。
+
+### 失败路径硬化（M5 TD04/TD05）
+
+- 会话文件被强杀留下半行时，`hb resume` 只跳过最后一个分片的末行，恢复到最后一个完整行并标记 `RecoveredTail`；中间损坏仍报错。
+- `read_file` 对超过 1MB 的单行拒绝并提示用 shell 切分；普通长行仍按 2000 字符截断。
+- shell 超时提示补上可操作建议：给命令加 `-v` 输出进度，或用 `timeout_ms` 延长。
+- `list_dir` 路径不存在/越界/非目录改为明确提示；超过 500 条时提示用 glob 缩小范围。
+- 模型输出非法 UTF-8 时在适配器与引擎事件边界双重净化；emoji 输入、SSE 中途断连均有端到端测试。
+- SSE/Responses/Anthropic 断流时发出 `Disconnected` 信号；引擎注入"从截断处继续"提示并在同回合续写，最多 2 次，超限明确失败。
+- 网络连接失败统一映射到 `HB-NET-001`（检查 base_url / HTTPS_PROXY / `hb doctor`），不再直接打印裸 `dial tcp`；原始错误只在 `--debug` 输出。
+- 写入失败把 `HB-IO-001` 处置建议放在 OS 原文之前，避免被 CLI 单行截断吃掉。
 
 ### TUI 日用小交互
 

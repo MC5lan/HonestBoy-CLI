@@ -129,12 +129,14 @@ func (c *ChatClient) stream(ctx context.Context, req Request, out chan<- Chunk) 
 	calls := make(map[int]*assembledCall)
 	var order []int
 	var finalUsage *Usage
+	sawDone := false
 
 	err = ParseSSE(resp.Body, func(_, data []byte) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		if bytes.Equal(bytes.TrimSpace(data), []byte("[DONE]")) {
+			sawDone = true
 			return nil
 		}
 		var d sseDelta
@@ -198,6 +200,9 @@ func (c *ChatClient) stream(ctx context.Context, req Request, out chan<- Chunk) 
 	}
 	if finalUsage != nil {
 		out <- Chunk{Usage: finalUsage}
+	}
+	if !sawDone {
+		out <- Chunk{Disconnected: true}
 	}
 	out <- Chunk{Done: true}
 	return nil

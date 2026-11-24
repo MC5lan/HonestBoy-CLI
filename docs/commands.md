@@ -113,7 +113,7 @@ DeepSeek 思考模式（`deepseek-flash`）默认开启。适配器会解析并�
   可用 `hb config set max_output_tokens 128k` 固定，`auto` 恢复自动。
 - 默认工作区可用 `hb config set workdir D:\code\your-project` 固定；`--cwd` 优先于配置，
   配置优先于进程当前目录。`hb init` 会把选择的工作区写入配置。
-- 严格质量契约：`hb config set rigor strict`。它只追加质量提示并检查占位符，
+- 质量契约常开（等价 `rigor=strict`，不能用 `normal` 关闭）。它只追加质量提示并检查占位符，
   Gate 仍只认证据；详见 [`rigor.md`](rigor.md)。
 - 每轮开始写文件快照检查点（跳过 `.git`/构建产物与 >2MB 文件）；`hb rewind restore` 可把代码恢复到快照，
   对话历史不受影响（对标 Claude Code `/rewind` 与 Aider `/undo`）。

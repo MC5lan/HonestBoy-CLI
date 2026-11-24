@@ -35,6 +35,20 @@ func TestHTMLTaskCompletesWithDiff(t *testing.T) {
 	}
 }
 
+// 质量契约常开：即使旧配置写着 normal，也必须注入并做占位符检查。
+func TestRigorAlwaysOn(t *testing.T) {
+	client := &scriptedClient{responses: [][]llm.Chunk{{{Text: "只回答"}}}}
+	eng := newTestEngine(t, client)
+	eng.cfg.Rigor = "normal"
+	runEngine(t, eng, "质量契约常开")
+	if len(client.requests) == 0 {
+		t.Fatal("no model request")
+	}
+	if !strings.Contains(client.requests[0].Messages[0].Content, "质量契约") {
+		t.Fatal("quality contract not injected when rigor=normal")
+	}
+}
+
 // strict 模式注入质量契约，并把占位符警告回传给模型。
 func TestStrictRigorPromptAndQualityWarn(t *testing.T) {
 	client := &scriptedClient{responses: [][]llm.Chunk{

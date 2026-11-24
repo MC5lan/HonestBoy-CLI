@@ -2,10 +2,12 @@ package cli
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/core"
+	"github.com/MC5lan/HonestBoy-CLI/internal/llm"
 )
 
 func TestHumanEventsFriendly(t *testing.T) {
@@ -33,6 +35,24 @@ func TestFriendlyErrorAuth(t *testing.T) {
 	got := friendlyError(raw)
 	if !strings.Contains(got, "密钥不对") || strings.Contains(got, `"error"`) {
 		t.Fatalf("friendly auth error = %q", got)
+	}
+}
+
+func TestFriendlyErrorNetwork(t *testing.T) {
+	err := fmt.Errorf("%w: %w", ErrEnvironment, &llm.RetryableError{Status: 0, Message: "dial tcp: connection refused"})
+	got := FriendlyError(err)
+	if !strings.Contains(got, "base_url") || !strings.Contains(got, "hb doctor") {
+		t.Fatalf("network error should be actionable: %q", got)
+	}
+	if strings.Contains(got, "dial tcp") {
+		t.Fatalf("raw dial error leaked: %q", got)
+	}
+}
+
+func TestFriendlyErrorDialTCP(t *testing.T) {
+	got := friendlyError(`Post "http://127.0.0.1:9/chat/completions": dial tcp 127.0.0.1:9: connectex: connection refused`)
+	if !strings.Contains(got, "base_url") || !strings.Contains(got, "hb doctor") {
+		t.Fatalf("dial error should be actionable: %q", got)
 	}
 }
 

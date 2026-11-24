@@ -8,7 +8,7 @@
   <a href="https://github.com/MC5lan/HonestBoy-CLI/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/MC5lan/HonestBoy-CLI/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Go" src="https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white">
   <img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue">
-  <img alt="Status" src="https://img.shields.io/badge/status-v0.1.1-blue">
+  <img alt="Status" src="https://img.shields.io/badge/status-v0.2.0-blue">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey">
 </p>
 
@@ -30,9 +30,9 @@
 | **证据门禁** | `done` 必须由本次真实运行、通过、可接地的 `build` / `test` / `vet` 证据支撑 |
 | **可审计** | 证据带原文哈希，Receipt 串成哈希链；`hb verify` 定位篡改 |
 | **真工具** | 读/写/精确编辑、`apply_patch`、搜索、shell、构建/测试/静态检查 |
-| **长任务** | 上下文压缩、仓库地图、每轮检查点、`hb rewind` 代码回退 |
+| **长任务** | 上下文压缩、仓库地图、每轮检查点、`hb rewind` 代码回退；SSE 断流自动续写 |
 | **工作流** | 计划模式 + `hb approve`、`--auto-commit`、`hb undo` / `hb diff` |
-| **质量契约** | `rigor=strict` 要求完整实现、边界/安全、最小 diff，并检查占位符 |
+| **质量契约** | 常开；要求完整实现、边界/安全、最小 diff，并检查 TODO/FIXME/占位符 |
 | **TUI** | 简洁标题栏、可滚动对话、右侧可观测面板、`/` 命令面板、`?` 帮助页 |
 | **模型** | OpenAI Chat、Anthropic Messages、OpenAI Responses 三套协议 |
 | **本地** | 会话只落本机，无遥测；密钥只从环境变量读取 |
@@ -113,7 +113,7 @@ hb                                 # TUI（需要 TTY）
 | `context.window` | `960k` | 上下文窗口：`300k` / `600k` / `960k` |
 | `reasoning_effort` | 提供方默认 | 思考强度：`low` / `high` / `max` |
 | `max_output_tokens` | `auto` | 单次输出预算；`auto` 时 max 思考为 128k、其余 64k |
-| `rigor` | `normal` | `strict` 启用严格质量契约与占位符检查 |
+| `rigor` | `strict（常开）` | 质量契约与占位符检查不能关闭；旧值 `normal` 自动收敛为 strict |
 | `approval.write` / `.exec` | `auto` / `ask` | 写文件 / 执行命令的审批策略 |
 | `tools.custom_dir` | 空 | 自定义工具目录，如 `tools.d`；默认关闭 |
 | `web.enabled` / `web.allowed_domains` | `false` / 空 | 受限网页读取；开启必须配域名白名单 |
@@ -122,7 +122,7 @@ hb                                 # TUI（需要 TTY）
 hb config set workdir D:\code\your-project
 hb config set context.window 600k
 hb config set reasoning_effort low
-hb config set rigor strict
+hb config set approval.write ask
 ```
 
 ## 安装
@@ -144,7 +144,7 @@ go build -o bin/hb ./cmd/hb
 install -m 755 bin/hb ~/.local/bin/hb   # 确保 ~/.local/bin 在 PATH
 ```
 
-需要 Go 1.27+。`winget` / `scoop` 清单已就绪，待首个 release 回填 SHA256 并收录。
+需要 Go 1.27+。`winget` / `scoop` 清单见 `winget/` 与 `scoop/`；每次发布后按 `checksums.txt` 回填 SHA256。
 
 ## 文档
 
@@ -170,7 +170,8 @@ make release-check   # build + vet + test + checkdeps + e2e
 
 ## 状态
 
-核心机制、三套协议、TUI、证据链、检查点、计划模式、严格质量契约与发布脚手架均已实现。
-首个正式 release 尚未发布；已知技术债见 [`docs/tech-debt.md`](docs/tech-debt.md)。
+核心机制、三套协议、TUI、证据链、检查点、计划模式、常开质量契约与发布脚手架均已实现。
+`v0.1.1` 已发布，`v0.2.0` 正在收口；1.0 发布门与未完成项见 [`docs/roadmap-v1.0.md`](docs/roadmap-v1.0.md)，
+已知技术债见 [`docs/tech-debt.md`](docs/tech-debt.md)。
 
 Apache-2.0，见 [`LICENSE`](LICENSE)。

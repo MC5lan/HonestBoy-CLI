@@ -53,6 +53,10 @@ func TestShellTimeout(t *testing.T) {
 	if err != nil || r.OK || !strings.Contains(r.Output, "timeout") {
 		t.Fatalf("timeout: %+v %v", r, err)
 	}
+	// TD05 E3：超时提示必须带可操作建议（加 -v 或延长 timeout_ms）。
+	if !strings.Contains(r.Output, "-v") || !strings.Contains(r.Output, "timeout_ms") {
+		t.Fatalf("timeout hint not actionable: %q", r.Output)
+	}
 	if time.Since(start) > 10*time.Second {
 		t.Fatal("timeout took too long")
 	}

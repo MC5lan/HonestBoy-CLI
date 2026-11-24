@@ -16,6 +16,9 @@ import (
 	"github.com/MC5lan/HonestBoy-CLI/internal/tools"
 )
 
+// maxResumeRetries 限制断流自动续写次数，避免端点持续断开时把 MaxTurns 全耗光。
+const maxResumeRetries = 2
+
 // runTurn 是单次回合主循环：模型流 → 工具执行 → Gate 判定 → 终态与 Receipt。
 func (e *Engine) runTurn(ctx context.Context, input, history string) (core.Terminal, error) {
 	s := e.session
@@ -30,6 +33,7 @@ func (e *Engine) runTurn(ctx context.Context, input, history string) (core.Termi
 	remediation := 0
 	abstainRetries := 0
 	selfRetries := 0
+	resumeRetries := 0
 	terminal := core.Terminal("")
 
 	e.emit(core.EvtTurnStart, core.TurnStartData{Input: input, Model: e.cfg.Model})
@@ -136,6 +140,7 @@ steps:
 		var stepUsage llm.Usage
 		streamDone := false
 		truncated := false
+		disconnected := false
 		for !streamDone {
 			select {
 			case c, ok := <-chunks:
@@ -144,17 +149,22 @@ steps:
 					continue
 				}
 				if c.Reasoning != "" {
-					reasoning.WriteString(c.Reasoning)
+					reasoning.WriteString(llm.SanitizeUTF8(c.Reasoning))
 				}
 				if c.Truncated {
 					truncated = true
 				}
+				if c.Disconnected {
+					disconnected = true
+				}
 				if c.Text != "" {
+					// 防御纵深：适配器已净化一次，这里再兜底，保证事件流永远是合法 UTF-8。
+					delta := llm.SanitizeUTF8(c.Text)
 					if firstChunkAt.IsZero() {
 						firstChunkAt = time.Now()
 					}
-					text.WriteString(c.Text)
-					e.emit(core.EvtTextDelta, core.TextDeltaData{Text: c.Text})
+					text.WriteString(delta)
+					e.emit(core.EvtTextDelta, core.TextDeltaData{Text: delta})
 				}
 				if c.Call != nil {
 					calls = append(calls, *c.Call)
@@ -197,6 +207,27 @@ steps:
 				ToolTokens:    int64(toolTokens),
 			})
 		}
+		// 断流续写：没收到正常结束标志时把已输出内容与续写提示追加进 messages，再走一步。
+		// 已有工具调用的步不丢弃工具结果，只提示用户。
+		if disconnected {
+			e.emit(core.EvtNotice, core.NoticeData{Level: "warn", Text: "模型连接中断，已记录已输出内容，正在从截断处继续"})
+			if len(calls) == 0 {
+				resumeRetries++
+				if resumeRetries > maxResumeRetries {
+					msg := "模型连接中断，重试后仍未收到完整响应；已保留已输出内容，请重跑本任务"
+					e.emit(core.EvtError, core.ErrorData{Code: "HB-NET-001", Message: msg})
+					e.writeReceipt(core.TermFailed, msg)
+					_ = turn.Transition(core.StClosed)
+					return core.TermFailed, nil
+				}
+				if text.Len() > 0 {
+					messages = append(messages, llm.Message{Role: "assistant", Content: text.String()})
+				}
+				messages = append(messages, llm.ResumePrompt(text.String()))
+				continue steps
+			}
+		}
+
 		// 输出被 max_tokens 截断且没有任何工具调用：本步没有可执行结果，
 		// 不能伪装成“未验证”，按失败结束并给出原因。
 		if truncated && len(calls) == 0 {

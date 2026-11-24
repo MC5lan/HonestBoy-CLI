@@ -20,7 +20,7 @@ func PrintHelpTopic(w io.Writer, topic string) bool {
   hb config get <key>
   hb config set <key> <value>
   常用键：model / protocol / base_url / workdir / theme /
-  context.window / reasoning_effort / rigor / approval.exec /
+  context.window / reasoning_effort / rigor（常开）/ approval.exec /
   tools.custom_dir / web.enabled / web.allowed_domains`,
 		"evidence": `证据与 Gate
   done 必须由本次真实运行、通过、可接地的 build/test/vet 证据支撑。

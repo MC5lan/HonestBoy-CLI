@@ -35,7 +35,10 @@ func TestRigorPromptFragment(t *testing.T) {
 			t.Fatalf("rigor prompt missing %q", want)
 		}
 	}
-	if RigorEnabled("normal") || !RigorEnabled("STRICT") {
-		t.Fatal("RigorEnabled mapping wrong")
+	// 质量契约常开：旧值 normal/空/未知值都不能关闭。
+	for _, level := range []string{"", "normal", "strict", "STRICT", "bogus"} {
+		if !RigorEnabled(level) {
+			t.Fatalf("RigorEnabled(%q) = false, quality contract must stay on", level)
+		}
 	}
 }
