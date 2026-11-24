@@ -44,15 +44,20 @@ type Config struct {
 		HBMDLimit   int     `json:"hb_md_limit"`
 	} `json:"context"`
 	Tools struct {
-		ShellTimeoutMS   int `json:"shell_timeout_ms"`
-		OutputLimitBytes int `json:"output_limit_bytes"`
-		SearchMaxResults int `json:"search_max_results"`
+		ShellTimeoutMS   int    `json:"shell_timeout_ms"`
+		OutputLimitBytes int    `json:"output_limit_bytes"`
+		SearchMaxResults int    `json:"search_max_results"`
+		CustomDir        string `json:"custom_dir,omitempty"`
 	} `json:"tools"`
 	UI struct {
 		Width              int  `json:"width"`
 		ShowTimestamps     bool `json:"show_timestamps"`
 		CollapseToolBlocks bool `json:"collapse_tool_blocks"`
 	} `json:"ui"`
+	Web struct {
+		Enabled        bool     `json:"enabled"`
+		AllowedDomains []string `json:"allowed_domains,omitempty"`
+	} `json:"web"`
 }
 
 func DefaultConfig() Config {

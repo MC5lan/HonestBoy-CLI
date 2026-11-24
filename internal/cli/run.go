@@ -12,6 +12,7 @@ import (
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/core"
 	"github.com/MC5lan/HonestBoy-CLI/internal/engine"
+	"github.com/MC5lan/HonestBoy-CLI/internal/git"
 	"github.com/MC5lan/HonestBoy-CLI/internal/logging"
 	"github.com/MC5lan/HonestBoy-CLI/internal/store"
 	"github.com/MC5lan/HonestBoy-CLI/internal/tools"
@@ -39,6 +40,12 @@ func RunRun(opts GlobalOptions, args []string) error {
 	if prompt == "" {
 		return ErrUsage
 	}
+	if opts.Diff {
+		prompt, err = withGitDiff(prompt, workdir)
+		if err != nil {
+			return err
+		}
+	}
 
 	baseURL := firstNonEmpty(opts.BaseURL, cfg.BaseURL)
 	protocol := firstNonEmpty(opts.Protocol, cfg.Protocol)
@@ -59,6 +66,12 @@ func RunRun(opts GlobalOptions, args []string) error {
 	defer sb.Close()
 	guard := tools.NewReadGuard()
 	registry := tools.NewDefaultRegistry(sb, guard, cfg.Shell)
+	if err := tools.RegisterCustomTools(registry, cfg.Tools.CustomDir, workdir); err != nil {
+		return fmt.Errorf("%w: 自定义工具加载失败: %v", ErrEnvironment, err)
+	}
+	if err := tools.RegisterWebFetch(registry, cfg.Web.Enabled, cfg.Web.AllowedDomains); err != nil {
+		return fmt.Errorf("%w: %v", ErrEnvironment, err)
+	}
 
 	approval := engine.ApprovalPolicy{
 		Write: firstNonEmpty(cfg.Approval.Write, "auto"),
@@ -120,6 +133,22 @@ func RunRun(opts GlobalOptions, args []string) error {
 }
 
 // readPrompt 拼合命令行参数与管道输入。
+// withGitDiff 把工作区 diff 追加到任务上下文；空 diff 也明确说明。
+func withGitDiff(prompt, workdir string) (string, error) {
+	repo, err := git.Open(workdir)
+	if err != nil {
+		return "", fmt.Errorf("%w: --diff 需要 git 工作区: %v", ErrEnvironment, err)
+	}
+	diff, err := repo.Diff()
+	if err != nil {
+		return "", fmt.Errorf("%w: %v", ErrEnvironment, err)
+	}
+	if strings.TrimSpace(diff) == "" {
+		return prompt + "\n\n## git diff\n（工作区无未提交改动）", nil
+	}
+	return prompt + "\n\n## git diff\n```diff\n" + diff + "\n```", nil
+}
+
 func readPrompt(args []string) (string, error) {
 	var parts []string
 	if len(args) > 0 {

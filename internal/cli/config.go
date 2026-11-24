@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -46,6 +47,9 @@ func RunConfig(opts GlobalOptions, args []string) error {
 		fmt.Fprintf(os.Stdout, "context.window = %d (%s)\n", cfg.Context.Window, formatK(cfg.Context.Window))
 		fmt.Fprintf(os.Stdout, "approval.write = %s\n", cfg.Approval.Write)
 		fmt.Fprintf(os.Stdout, "approval.exec  = %s\n", cfg.Approval.Exec)
+		fmt.Fprintf(os.Stdout, "tools.custom_dir = %s\n", firstNonEmpty(cfg.Tools.CustomDir, "(关闭)"))
+		fmt.Fprintf(os.Stdout, "web.enabled    = %v\n", cfg.Web.Enabled)
+		fmt.Fprintf(os.Stdout, "web.domains    = %s\n", strings.Join(cfg.Web.AllowedDomains, ", "))
 		return nil
 	case "get":
 		if len(args) < 2 {
@@ -111,6 +115,13 @@ func configField(c store.Config, key string) (string, bool) {
 		return c.Approval.Write, true
 	case "approval.exec":
 		return c.Approval.Exec, true
+	case "tools.custom_dir":
+		return c.Tools.CustomDir, true
+	case "web.enabled":
+		return strconv.FormatBool(c.Web.Enabled), true
+	case "web.allowed_domains":
+		raw, _ := json.Marshal(c.Web.AllowedDomains)
+		return string(raw), true
 	default:
 		return "", false
 	}
@@ -190,10 +201,45 @@ func setConfigField(c *store.Config, key, value string) error {
 		} else {
 			c.Approval.Exec = value
 		}
+	case "tools.custom_dir":
+		c.Tools.CustomDir = strings.TrimSpace(value)
+	case "web.enabled":
+		b, err := strconv.ParseBool(strings.TrimSpace(value))
+		if err != nil {
+			return ErrUsage
+		}
+		c.Web.Enabled = b
+	case "web.allowed_domains":
+		domains, err := parseDomains(value)
+		if err != nil {
+			return err
+		}
+		c.Web.AllowedDomains = domains
 	default:
 		return ErrUsage
 	}
 	return nil
+}
+
+func parseDomains(value string) ([]string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, nil
+	}
+	var domains []string
+	if strings.HasPrefix(value, "[") {
+		if err := json.Unmarshal([]byte(value), &domains); err != nil {
+			return nil, ErrUsage
+		}
+	} else {
+		for _, part := range strings.Split(value, ",") {
+			part = strings.TrimSpace(strings.TrimPrefix(strings.ToLower(part), "."))
+			if part != "" {
+				domains = append(domains, part)
+			}
+		}
+	}
+	return domains, nil
 }
 
 // parseTokenCount 解析 300k / 600k / 960k / 300000 这类窗口设置。

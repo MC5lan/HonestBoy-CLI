@@ -7,12 +7,11 @@ import (
 )
 
 var (
-	ErrUsage          = errors.New("usage error")
-	ErrEnvironment    = errors.New("environment error")
-	ErrTimeout        = errors.New("timeout")
-	ErrInterrupted    = errors.New("interrupted")
-	ErrChainBroken    = errors.New("evidence chain broken")
-	ErrNotImplemented = errors.New("command not implemented yet")
+	ErrUsage       = errors.New("usage error")
+	ErrEnvironment = errors.New("environment error")
+	ErrTimeout     = errors.New("timeout")
+	ErrInterrupted = errors.New("interrupted")
+	ErrChainBroken = errors.New("evidence chain broken")
 	// ErrInteractive 由 cmd 层捕获并启动 TUI；cli 包本身不依赖 tui。
 	ErrInteractive = errors.New("interactive mode requested")
 )

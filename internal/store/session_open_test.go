@@ -8,6 +8,32 @@ import (
 	"github.com/MC5lan/HonestBoy-CLI/internal/core"
 )
 
+func TestListMarksSessionEnd(t *testing.T) {
+	root := t.TempDir()
+	paths := Paths{Root: root, Sessions: filepath.Join(root, "sessions"), Logs: filepath.Join(root, "logs")}
+	ss := NewSessionStore(paths)
+	sess := core.Session{ID: "s_end", Cwd: root, CreatedAt: time.Now().UTC()}
+	if err := ss.Create(sess); err != nil {
+		t.Fatal(err)
+	}
+	if err := ss.AppendEvent(sess.Emit(core.EvtTurnStart, core.TurnStartData{Input: "任务"})); err != nil {
+		t.Fatal(err)
+	}
+	if err := ss.AppendEvent(sess.Emit(core.EvtSessionEnd, core.SessionEndData{Terminal: "done"})); err != nil {
+		t.Fatal(err)
+	}
+	if err := ss.Unlock(); err != nil {
+		t.Fatal(err)
+	}
+	metas, err := NewSessionStore(paths).List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(metas) != 1 || !metas[0].Ended {
+		t.Fatalf("metas = %+v", metas)
+	}
+}
+
 // Open 必须锁定并加载已有会话，续写时 seq 继续递增、不重写 meta。
 func TestOpenAppendsToExistingSession(t *testing.T) {
 	root := t.TempDir()

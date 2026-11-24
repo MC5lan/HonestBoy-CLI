@@ -53,6 +53,12 @@ func runTUI(resumeID string) error {
 	}
 	defer sb.Close()
 	registry := tools.NewDefaultRegistry(sb, tools.NewReadGuard(), cfg.Shell)
+	if err := tools.RegisterCustomTools(registry, cfg.Tools.CustomDir, wd); err != nil {
+		return fmt.Errorf("%w: 自定义工具加载失败: %v", cli.ErrEnvironment, err)
+	}
+	if err := tools.RegisterWebFetch(registry, cfg.Web.Enabled, cfg.Web.AllowedDomains); err != nil {
+		return fmt.Errorf("%w: %v", cli.ErrEnvironment, err)
+	}
 	approvalCh := make(chan tui.ApprovalAsk)
 	approvalHandler := func(ctx context.Context, req core.ApprovalRequest) (core.ApprovalDecision, error) {
 		resp := make(chan core.ApprovalDecision, 1)
@@ -170,8 +176,12 @@ func runTUI(resumeID string) error {
 			if m.Cwd != "" && !samePath(m.Cwd, wd) {
 				continue
 			}
+			term := m.Terminal
+			if term == "" && !m.Ended {
+				term = "未正常退出"
+			}
 			out = append(out, tui.SessionInfo{
-				ID: m.ID, Summary: m.InputSummary, Terminal: m.Terminal,
+				ID: m.ID, Summary: m.InputSummary, Terminal: term,
 				Modified: m.ModifiedAt.Format("2006-01-02 15:04"),
 			})
 			if len(out) >= 20 {

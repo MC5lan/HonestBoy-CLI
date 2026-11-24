@@ -21,6 +21,7 @@ const (
 	EvtDiffReview     EventType = "diff_review"
 	EvtUsage          EventType = "usage"
 	EvtError          EventType = "error"
+	EvtSessionEnd     EventType = "session_end"
 )
 
 // Event 是系统唯一真相；一经产出不得修改。
@@ -99,4 +100,9 @@ type UsageData struct {
 type ErrorData struct {
 	Code, Message string
 	Retryable     bool
+}
+
+// SessionEndData 标记会话正常收尾；缺失它说明进程被强杀或崩溃。
+type SessionEndData struct {
+	Terminal string
 }

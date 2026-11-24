@@ -79,14 +79,14 @@
 
 依赖：M1/M2 可并行，但建议在 M2 后。目标：补齐手册能力矩阵里标为“做”的缺口。
 
-- [ ] `hb run --diff`：把 `git diff` 作为上下文 (M)
+- [x] `hb run --diff`：把 `git diff` 作为上下文 (M)
 - [ ] 并行只读工具：无依赖 read/search/list 并行，写操作串行 (M)
-- [ ] 自定义工具 `tools.d/*.json`：命令+schema+Risk+Provenance，显式启用 (L)
-- [ ] `web_fetch` 白名单域名，默认关闭，开启需审批 (M)
-- [ ] `session_end` 事件；`hb sessions` 显示异常退出标记 (S)
+- [x] 自定义工具 `tools.d/*.json`：命令+schema+Risk+Provenance，显式启用 (L)
+- [x] `web_fetch` 白名单域名，默认关闭，开启需审批 (M)
+- [x] `session_end` 事件；`hb sessions` 显示异常退出标记 (S)
 - [ ] 单会话 50MB 轮转到 `session-<id>-2.jsonl` (M)
-- [ ] `Registry.Declarations()` 输出真实声明；注册时校验 schema；重名错误区分 (M)
-- [ ] 清理 `RunChat`/`RunResume` 死代码，或让入口真正走它们 (S)
+- [x] `Registry.Declarations()` 输出真实声明；注册时校验 schema；重名错误区分 (M)
+- [x] 清理 `RunChat`/`RunResume` 死代码 (S)
 
 验收：手册 T301/T615/T804/T908 与 §6.2 工具矩阵；新增工具都有 schema、Risk、Provenance、测试、文档。
 

@@ -72,6 +72,8 @@ func decodeEventData(t EventType, raw []byte) (any, error) {
 		target = &UsageData{}
 	case EvtError:
 		target = &ErrorData{}
+	case EvtSessionEnd:
+		target = &SessionEndData{}
 	default:
 		return nil, fmt.Errorf("unknown event type %q", t)
 	}
@@ -109,6 +111,8 @@ func decodeEventData(t EventType, raw []byte) (any, error) {
 	case *UsageData:
 		return *v, nil
 	case *ErrorData:
+		return *v, nil
+	case *SessionEndData:
 		return *v, nil
 	}
 	return nil, nil

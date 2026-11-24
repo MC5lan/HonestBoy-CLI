@@ -26,7 +26,9 @@
 | `hb help` | 打印帮助 | 否 |
 
 全局 flag：`--model` `--protocol` `--base-url` `--cwd` `--json` `--quiet`
-`--yes` `--plan` `--auto-commit` `--timeout` `--max-turns` `--no-color` `--debug` `--version` `--help`
+`--yes` `--plan` `--diff` `--auto-commit` `--timeout` `--max-turns` `--no-color` `--debug` `--version` `--help`
+
+`--diff`：把当前工作区的 `git diff` 追加到任务上下文，适合“只改这些改动”的场景。
 
 `--auto-commit`（Aider 风格）：回合开始前把用户已有脏改动单独提交；回合结束后若有写操作则自动提交，
 并产出 `diff_review` 事件（提交号/文件列表/统计）供 TUI 与日志审阅。用 `hb undo` 撤销、`hb diff` 查看。

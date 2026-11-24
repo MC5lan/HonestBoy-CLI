@@ -67,7 +67,7 @@ hb                                 # TUI（需要 TTY）
 | 命令 | 说明 |
 |---|---|
 | `hb` / `hb chat` | 启动 TUI（需要 TTY） |
-| `hb run <prompt>` | 单次执行；`--plan` 先出计划，`--auto-commit` 自动提交 |
+| `hb run <prompt>` | 单次执行；`--plan` 先出计划，`--diff` 注入工作区 diff，`--auto-commit` 自动提交 |
 | `hb probe` | 三态探针，离线验证 Gate |
 | `hb verify` / `hb stats` | 校验证据链 / 诚实度统计 |
 | `hb sessions` / `hb resume <id>` | 会话列表 / 恢复 |
@@ -115,6 +115,8 @@ hb                                 # TUI（需要 TTY）
 | `max_output_tokens` | `auto` | 单次输出预算；`auto` 时 max 思考为 128k、其余 64k |
 | `rigor` | `normal` | `strict` 启用严格质量契约与占位符检查 |
 | `approval.write` / `.exec` | `auto` / `ask` | 写文件 / 执行命令的审批策略 |
+| `tools.custom_dir` | 空 | 自定义工具目录，如 `tools.d`；默认关闭 |
+| `web.enabled` / `web.allowed_domains` | `false` / 空 | 受限网页读取；开启必须配域名白名单 |
 
 ```bash
 hb config set workdir D:\code\your-project
@@ -150,6 +152,7 @@ install -m 755 bin/hb ~/.local/bin/hb   # 确保 ~/.local/bin 在 PATH
 - [命令与快捷键](docs/commands.md)
 - [证据格式](docs/evidence-format.md)
 - [严格质量契约](docs/rigor.md)
+- [自定义工具与 web_fetch](docs/custom-tools.md)
 - [故障排查](docs/troubleshooting.md)
 - [设计论文（PDF）](docs/paper/constructive-closure.pdf)
 - [发布清单](docs/release-checklist.md)

@@ -20,6 +20,7 @@ type GlobalOptions struct {
 	Quiet      bool
 	Plan       bool
 	AutoCommit bool
+	Diff       bool
 	Yes        bool
 	NoColor    bool
 	Debug      bool
@@ -47,6 +48,8 @@ func Execute(args []string) error {
 			opts.Plan = true
 		case "--auto-commit":
 			opts.AutoCommit = true
+		case "--diff":
+			opts.Diff = true
 		case "--yes":
 			opts.Yes = true
 		case "--no-color":

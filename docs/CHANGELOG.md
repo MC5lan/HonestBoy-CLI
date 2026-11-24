@@ -22,6 +22,15 @@
 - 40 个 Markdown golden 快照（10 内容 × 4 宽度），支持 `UPDATE_SNAPSHOTS=1`。
 - 200 块 LRU 渲染缓存；200 行代码实测 35.5ms，暂未达到 30ms 目标。
 
+### 引擎与工具
+
+- `hb run --diff` 把工作区 git diff 注入任务上下文。
+- `tools.d/*.json` 自定义工具：直接 exec、参数模板、Risk、schema 校验、超时/输出上限。
+- `web_fetch`：默认关闭，域名白名单、私网/回环拒绝、2MB 截断、联网审批。
+- `session_end` 事件与 `hb sessions` 异常退出标记。
+- Registry 输出真实声明，注册时校验 schema 与重名。
+- 删除 `RunChat`/`RunResume` 死代码。
+
 ## v0.1.1 - 2026-11-24
 
 ### 自更新

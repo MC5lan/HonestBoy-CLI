@@ -115,6 +115,16 @@ func countEvents(rs runResult, t core.EventType) int {
 	return n
 }
 
+func TestRunEmitsSessionEnd(t *testing.T) {
+	eng := newTestEngine(t, &scriptedClient{responses: [][]llm.Chunk{
+		{{Text: "只回答"}},
+	}})
+	rs := runEngine(t, eng, "只回答")
+	if countEvents(rs, core.EvtSessionEnd) != 1 {
+		t.Fatalf("session_end count = %d", countEvents(rs, core.EvtSessionEnd))
+	}
+}
+
 func TestEngineNoEvidenceDenied(t *testing.T) {
 	client := &scriptedClient{responses: [][]llm.Chunk{
 		{call("w1", "write_file", `{"path":"a.go","content":"package main\n"}`)},

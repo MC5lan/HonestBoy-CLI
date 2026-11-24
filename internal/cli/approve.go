@@ -68,7 +68,7 @@ func RunApprove(opts GlobalOptions, args []string) error {
 		Workdir: workdir, Model: firstNonEmpty(opts.Model, cfg.Model),
 		Protocol: cfg.Protocol, BaseURL: cfg.BaseURL,
 		APIKey:   os.Getenv(cfg.APIKeyEnv),
-		Registry: tools.NewDefaultRegistry(sb, tools.NewReadGuard(), cfg.Shell),
+		Registry: registryFor(sb, workdir, cfg),
 		Approval: approval, MaxTurns: opts.MaxTurns,
 		SelfAssessment:  true,
 		AmbiguityHalt:   true,
@@ -103,6 +103,13 @@ func RunApprove(opts GlobalOptions, args []string) error {
 		return nil
 	}
 	return &TerminalError{Terminal: terminal}
+}
+
+func registryFor(sb *tools.Sandbox, workdir string, cfg store.Config) *tools.Registry {
+	registry := tools.NewDefaultRegistry(sb, tools.NewReadGuard(), cfg.Shell)
+	_ = tools.RegisterCustomTools(registry, cfg.Tools.CustomDir, workdir)
+	_ = tools.RegisterWebFetch(registry, cfg.Web.Enabled, cfg.Web.AllowedDomains)
+	return registry
 }
 
 func truncatePlan(s string, n int) string {

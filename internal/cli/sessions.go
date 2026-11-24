@@ -87,8 +87,12 @@ func RunSessions(opts GlobalOptions, args []string) error {
 	}
 	fmt.Fprintf(os.Stdout, "%-22s %-20s %-14s %-10s %s\n", "ID", "时间", "终态", "cwd", "首条输入")
 	for _, m := range metas {
+		term := displayTerminal(m.Terminal)
+		if m.Terminal == "" && !m.Ended {
+			term = "(未正常退出)"
+		}
 		fmt.Fprintf(os.Stdout, "%-22s %-20s %-14s %-10s %s\n",
-			m.ID, m.ModifiedAt.Format("2006-01-02 15:04"), displayTerminal(m.Terminal),
+			m.ID, m.ModifiedAt.Format("2006-01-02 15:04"), term,
 			shortPath(m.Cwd), oneLine(m.InputSummary, 40))
 	}
 	return nil

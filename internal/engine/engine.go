@@ -220,6 +220,7 @@ func (e *Engine) Run(ctx context.Context, prompt string) (<-chan core.Event, <-c
 			Terminal: string(terminal), DurationMS: time.Since(e.startTime).Milliseconds(),
 			TokensIn: e.usage.In, TokensOut: e.usage.Out, ReceiptID: e.lastReceipt,
 		})
+		e.emit(core.EvtSessionEnd, core.SessionEndData{Terminal: string(terminal)})
 	}()
 	return events, errs
 }

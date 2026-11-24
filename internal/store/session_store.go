@@ -38,6 +38,7 @@ type SessionMeta struct {
 	Cwd          string
 	InputSummary string
 	Terminal     string
+	Ended        bool // 是否写入 session_end；false 表示强杀/崩溃
 	CreatedAt    time.Time
 	ModifiedAt   time.Time
 }
@@ -235,8 +236,13 @@ func (s *SessionStore) List() ([]SessionMeta, error) {
 							Input string `json:"input"`
 						} `json:"data"`
 					}
-					if json.Unmarshal(w.Event, &ev) == nil && ev.Type == core.EvtTurnStart && meta.InputSummary == "" {
-						meta.InputSummary = truncateRunes(ev.Data.Input, 40)
+					if json.Unmarshal(w.Event, &ev) == nil {
+						if ev.Type == core.EvtTurnStart && meta.InputSummary == "" {
+							meta.InputSummary = truncateRunes(ev.Data.Input, 40)
+						}
+						if ev.Type == core.EvtSessionEnd {
+							meta.Ended = true
+						}
 					}
 				case "receipt":
 					var r struct {

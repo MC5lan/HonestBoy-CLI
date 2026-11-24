@@ -87,6 +87,9 @@ func SessionsReport(limit int) (string, error) {
 		term := m.Terminal
 		if term == "" {
 			term = "中断"
+			if !m.Ended {
+				term = "未正常退出"
+			}
 		}
 		fmt.Fprintf(&b, "%s  %s  %s\n", m.ID, term, oneLine(m.InputSummary, 30))
 	}

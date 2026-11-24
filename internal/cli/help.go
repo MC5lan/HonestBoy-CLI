@@ -37,7 +37,7 @@ func PrintHelp(w io.Writer) {
   --protocol <name>    openai-chat（默认）| anthropic（Messages）| responses（Responses API）
   --base-url <url>     兼容端点；含 anthropic 时自动选 anthropic 协议
   --cwd <dir>          工作区根目录（沙箱边界）
-  --json, --quiet, --yes, --plan, --auto-commit, --no-color, --debug
+  --json, --quiet, --yes, --plan, --diff, --auto-commit, --no-color, --debug
   --timeout <dur>, --max-turns <n>
   --version, --help
 `)

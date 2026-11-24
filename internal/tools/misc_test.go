@@ -72,9 +72,41 @@ func TestRegistry(t *testing.T) {
 	if len(r.List()) != 1 || len(r.ByRisk(RiskRead)) != 1 || len(r.ByRisk(RiskExec)) != 0 {
 		t.Fatal("risk/list filtering failed")
 	}
-	if !strings.Contains(string(r.Declarations()), "[") {
-		t.Fatal("declarations should be a JSON array")
+	var decls []ToolDecl
+	if err := json.Unmarshal(r.Declarations(), &decls); err != nil {
+		t.Fatalf("declarations: %v", err)
 	}
+	if len(decls) != 1 || decls[0].Name != "read_file" || len(decls[0].Parameters) == 0 {
+		t.Fatalf("declarations = %+v", decls)
+	}
+}
+
+func TestRegistryRejectsInvalidSchema(t *testing.T) {
+	r := NewRegistry()
+	bad := &stubTool{name: "bad", schema: json.RawMessage(`{"type":"array"}`)}
+	if err := r.Register(bad); !errors.Is(err, ErrInvalidToolSchema) {
+		t.Fatalf("bad schema err = %v", err)
+	}
+	dup := &stubTool{name: "x", schema: json.RawMessage(`{"type":"object"}`)}
+	if err := r.Register(dup); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Register(dup); !errors.Is(err, ErrDuplicateTool) {
+		t.Fatalf("duplicate err = %v", err)
+	}
+}
+
+type stubTool struct {
+	name   string
+	schema json.RawMessage
+}
+
+func (s *stubTool) Name() string            { return s.name }
+func (s *stubTool) Description() string     { return "stub" }
+func (s *stubTool) Schema() json.RawMessage { return s.schema }
+func (s *stubTool) Risk() Risk              { return RiskRead }
+func (s *stubTool) Run(context.Context, json.RawMessage) (Result, error) {
+	return Result{OK: true}, nil
 }
 
 func TestToolSchemasAndRisk(t *testing.T) {
