@@ -54,7 +54,8 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
 34. M5 开局：core 覆盖率 82.9%→95.3%，补 labels/ledger/evidence/session 测试；
     e2e 增至 5 个；core/tools/tui 的 `-count=10` 本地通过。
 35. M5 测试硬化：沙箱逃逸样本补到 12 个；SSE/Markdown/diff 三个 fuzz 各 60s 本地通过。
-    文件化回放、Gate 20 反例、200 回合长跑与 sandbox 分支 100% 仍未完成。
+36. M5 回放/长跑：12 个文件化会话样本；Gate 反例 20 个；200 回合连续回合无 panic。
+    sandbox 分支 100%、TUI 内存阈值、30 天自用/陌生人测试仍未完成。
 
 ## 2026-11-23
 
