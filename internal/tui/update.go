@@ -206,10 +206,13 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+o":
 		if m.verboseTools {
 			m.verboseTools = false
-			m.markToolsDirty()
+			m.markAllDirty()
 			return m, nil
 		}
-		m.toggleLastTool()
+		if !m.toggleLastTool() {
+			m.verboseTools = true
+			m.markAllDirty()
+		}
 		return m, nil
 	case "ctrl+l":
 		m.blocks = nil

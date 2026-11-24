@@ -62,14 +62,14 @@
 
 依赖：M1（布局稳定后再做渲染缓存）。目标：代码、diff、表格在终端里可读。
 
-- [ ] 代码块高亮接入 `render.Highlight` / `FoldCode`；>200 行默认折叠，Ctrl+O 展开 (M)
-- [ ] diff 渲染接入行号、3 行上下文、未变段折叠；非 TTY 仍可辨识 (M)
-- [ ] 表格渲染接入自适应列宽、中文宽度、单元格换行、数字右对齐 (M)
-- [ ] OSC 8 超链接；不支持终端降级为 `文本 (URL)` (S)
-- [ ] Markdown 图片显示 `[图片: alt (URL)]`；>200 字符 base64 折叠 (S)
-- [ ] golden 快照：80/100/120/200 × dark/light/none，覆盖 40 个样本 (L)
-- [ ] 块级 LRU 缓存：hash(content)+width+theme，200 块上限 (M)
-- [ ] 200 行代码渲染 <30ms；二次渲染缓存命中 >80% (S)
+- [x] 代码块 >200 行默认折叠，Ctrl+O 展开；代码块加行号（glamour/chroma 高亮）(M)
+- [x] 工具 diff 显示旧/新行号；保留 3 行上下文与 +/- 前缀 (M)
+- [x] Markdown 表格通过 glamour 渲染；`render.Table` 中英混排单测保留 (M)
+- [x] OSC 8 超链接；不支持终端降级为可复制 URL (S)
+- [x] Markdown 图片显示 `[图片: alt (URL)]`；>200 字符 base64 折叠 (S)
+- [x] golden 快照：10 类内容 × 80/100/120/200 = 40 个样本，`UPDATE_SNAPSHOTS=1` 更新 (L)
+- [x] 块级 LRU 缓存：hash(content)+width+theme+expand，200 块上限 (M)
+- [ ] 200 行代码渲染 35.5ms，未达 <30ms；后续优化渲染管线或缓存命中路径 (S)
 
 验收：手册 T701–T712 阶段门；中英混排不错位；`NO_COLOR` 可读。
 

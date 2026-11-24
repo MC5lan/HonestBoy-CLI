@@ -397,7 +397,7 @@ func (m *Model) runSlash(name, line string, args []string) tea.Cmd {
 		m.hint = "配置已重载（模型/协议/端点/主题；工作区仍为当前会话）"
 	case "/verbose":
 		m.verboseTools = !m.verboseTools
-		m.markToolsDirty()
+		m.markAllDirty()
 		if m.verboseTools {
 			m.hint = "工具输出已展开（Ctrl+O 切换）"
 		} else {
@@ -646,15 +646,24 @@ func (m *Model) resetRenderCache() {
 	}
 }
 
-func (m *Model) toggleLastTool() {
+func (m *Model) toggleLastTool() bool {
 	for i := len(m.blocks) - 1; i >= 0; i-- {
 		if m.blocks[i].kind == blkTool {
 			m.blocks[i].collapsed = !m.blocks[i].collapsed
 			m.blocks[i].dirty = true
 			m.refreshView()
-			return
+			return true
 		}
 	}
+	return false
+}
+
+func (m *Model) markAllDirty() {
+	for i := range m.blocks {
+		m.blocks[i].dirty = true
+		m.blocks[i].mdKey, m.blocks[i].mdOut = 0, ""
+	}
+	m.refreshView()
 }
 
 func (m *Model) markToolsDirty() {

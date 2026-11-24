@@ -1,6 +1,7 @@
 package render
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -51,6 +52,75 @@ func TestToolCard(t *testing.T) {
 	expanded := ToolCard("shell", "echo hi", "line1\nline2", false, 30, 80, true)
 	if !strings.Contains(expanded, "line2") || !strings.Contains(expanded, "✗") {
 		t.Fatalf("failed card should expand: %q", expanded)
+	}
+}
+
+func TestMarkdownCodeFoldAndExpand(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("```go\n")
+	for i := 1; i <= 260; i++ {
+		b.WriteString("fmt.Println(1)\n")
+	}
+	b.WriteString("```\n")
+	r := New(100, "dark")
+	folded, err := r.Render(b.String())
+	if err != nil || !strings.Contains(folded, "折叠") {
+		t.Fatalf("folded code missing marker: %v\n%s", err, folded)
+	}
+	expanded, err := r.RenderWithOptions(b.String(), true)
+	if err != nil || strings.Contains(expanded, "折叠") {
+		t.Fatalf("expanded code still folded: %v\n%s", err, expanded)
+	}
+}
+
+func TestMarkdownImageAndBase64Fallback(t *testing.T) {
+	src := "![示意图](https://example.com/a.png)\n\n" + strings.Repeat("A", 300) + "\n"
+	r := New(100, "none")
+	out, err := r.Render(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "[图片: 示意图") || !strings.Contains(out, "[base64") {
+		t.Fatalf("fallback missing:\n%s", out)
+	}
+}
+
+func TestWrapURLs(t *testing.T) {
+	t.Setenv("TERM_PROGRAM", "vscode")
+	got := WrapURLs("see https://example.com/x for details")
+	if !strings.Contains(got, "\x1b]8;;https://example.com/x") {
+		t.Fatalf("OSC8 link missing: %q", got)
+	}
+	t.Setenv("TERM_PROGRAM", "Apple_Terminal")
+	if got := WrapURLs("see https://example.com/x"); strings.Contains(got, "\x1b]8;;") {
+		t.Fatalf("unsupported terminal should not get OSC8: %q", got)
+	}
+}
+
+func TestRendererCacheLRU(t *testing.T) {
+	r := New(80, "none")
+	for i := 0; i < renderCacheMax+10; i++ {
+		_, _ = r.Render("## " + fmt.Sprint(i))
+	}
+	if len(r.cache) != renderCacheMax {
+		t.Fatalf("cache size = %d, want %d", len(r.cache), renderCacheMax)
+	}
+}
+
+func BenchmarkMarkdown200Code(b *testing.B) {
+	var sb strings.Builder
+	sb.WriteString("```go\n")
+	for i := 0; i < 200; i++ {
+		sb.WriteString("fmt.Println(\"line\")\n")
+	}
+	sb.WriteString("```\n")
+	src := sb.String()
+	r := New(100, "dark")
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r.cache = map[string]string{}
+		r.cacheLRU = nil
+		_, _ = r.RenderWithOptions(src, true)
 	}
 }
 

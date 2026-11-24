@@ -61,5 +61,5 @@ func FoldCode(src string, maxLines int) (string, bool) {
 	if maxLines < head {
 		head = maxLines
 	}
-	return strings.Join(lines[:head], "\n") + fmt.Sprintf("\n… 折叠 %d 行", len(lines)-head), true
+	return strings.Join(lines[:head], "\n") + fmt.Sprintf("\n… 折叠 %d 行（Ctrl+O 展开）", len(lines)-head), true
 }

@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -72,7 +74,7 @@ func (b *block) RenderWith(r *render.Renderer, width int, th theme.Theme, verbos
 				break
 			}
 			if stable != b.mdKey || b.mdOut == "" {
-				if md, err := r.Render(b.content[:stable]); err == nil {
+				if md, err := r.RenderWithOptions(b.content[:stable], verbose); err == nil {
 					b.mdKey, b.mdOut = stable, md
 				}
 			}
@@ -156,6 +158,26 @@ func formatUser(s string) string {
 }
 
 // colorDiff 只做前缀着色，不改写验证器/工具产出的原文。
+func parseHunkStart(line string) (int, int) {
+	fields := strings.Fields(line)
+	if len(fields) < 3 {
+		return 1, 1
+	}
+	old := strings.TrimPrefix(fields[1], "-")
+	newer := strings.TrimPrefix(fields[2], "+")
+	parse := func(s string) int {
+		if i := strings.Index(s, ","); i >= 0 {
+			s = s[:i]
+		}
+		n, err := strconv.Atoi(s)
+		if err != nil {
+			return 1
+		}
+		return n
+	}
+	return parse(old), parse(newer)
+}
+
 func colorDiff(d string, th theme.Theme, width int) string {
 	lines := strings.Split(strings.TrimRight(d, "\n"), "\n")
 	const maxLines = 120
@@ -163,19 +185,47 @@ func colorDiff(d string, th theme.Theme, width int) string {
 		lines = append(lines[:maxLines], "… 其余 diff 已省略")
 	}
 	var out []string
+	oldNo, newNo := 0, 0
+	contentWidth := width - 13
+	if contentWidth < 10 {
+		contentWidth = 10
+	}
 	for _, line := range lines {
-		line = render.Truncate(line, width)
-		switch {
-		case strings.HasPrefix(line, "+++"), strings.HasPrefix(line, "---"):
-			out = append(out, th.DimStyle().Render(line))
-		case strings.HasPrefix(line, "+"):
-			out = append(out, th.SuccessStyle().Render(line))
-		case strings.HasPrefix(line, "-"):
-			out = append(out, th.DangerStyle().Render(line))
-		case strings.HasPrefix(line, "@@"):
-			out = append(out, th.AccentStyle().Render(line))
+		if strings.HasPrefix(line, "@@") {
+			oldNo, newNo = parseHunkStart(line)
+			out = append(out, th.AccentStyle().Render(render.Truncate(line, width)))
+			continue
+		}
+		if strings.HasPrefix(line, "+++") || strings.HasPrefix(line, "---") {
+			out = append(out, th.DimStyle().Render(render.Truncate(line, width)))
+			continue
+		}
+		prefix := " "
+		text := line
+		if len(line) > 0 {
+			prefix, text = line[:1], line[1:]
+		}
+		var num string
+		switch prefix {
+		case "+":
+			num = fmt.Sprintf("     %4d +", newNo)
+			newNo++
+		case "-":
+			num = fmt.Sprintf("%4d      -", oldNo)
+			oldNo++
 		default:
-			out = append(out, th.DimStyle().Render(line))
+			num = fmt.Sprintf("%4d %4d  ", oldNo, newNo)
+			oldNo++
+			newNo++
+		}
+		formatted := num + render.Truncate(text, contentWidth)
+		switch prefix {
+		case "+":
+			out = append(out, th.SuccessStyle().Render(formatted))
+		case "-":
+			out = append(out, th.DangerStyle().Render(formatted))
+		default:
+			out = append(out, th.DimStyle().Render(formatted))
 		}
 	}
 	return strings.Join(out, "\n")

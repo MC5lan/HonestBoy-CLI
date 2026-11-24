@@ -624,6 +624,26 @@ func TestApprovalLongCommandExpands(t *testing.T) {
 	}
 }
 
+// 助手 Markdown 里的长代码块默认折叠，Ctrl+O 展开。
+func TestAssistantCodeFoldsAndExpands(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("```go\n")
+	for i := 0; i < 260; i++ {
+		b.WriteString("fmt.Println(1)\n")
+	}
+	b.WriteString("```\n")
+	m := NewModel(Config{Theme: "none", Model: "m", Workdir: "p"})
+	m.setSize(100, 40)
+	m.applyEvent(core.Event{Type: core.EvtTextDelta, Data: core.TextDeltaData{Text: b.String()}})
+	if len(m.blocks) == 0 || !strings.Contains(m.blocks[len(m.blocks)-1].rendered, "折叠") {
+		t.Fatalf("long code not folded:\n%s", m.blocks[len(m.blocks)-1].rendered)
+	}
+	m.Update(tea.KeyMsg{Type: tea.KeyCtrlO})
+	if strings.Contains(m.blocks[len(m.blocks)-1].rendered, "折叠") {
+		t.Fatal("ctrl+o did not expand code")
+	}
+}
+
 // 回合必须把当前会话 ID 传给引擎，才能续接上下文。
 func TestRunReceivesSessionID(t *testing.T) {
 	var got string
