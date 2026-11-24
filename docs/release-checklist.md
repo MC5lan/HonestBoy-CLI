@@ -101,3 +101,17 @@ Windows 下旧文件先改名为 `hb.exe.old`，下次启动自动清理。
 - 用修复后的二进制对真实 GitHub `v0.1.1` 完成下载 → SHA256 → 替换 → 版本确认。
 - winget `0.1.0` 与 `0.1.1` 清单已通过 `winget validate`（ManifestVersion 1.6.0，Homepage 改为 PackageUrl）。
 - 仍未完成：winget 本地清单安装被本机管理员策略 `LocalManifestFiles` 拦截；scoop 未安装；Linux/arm64 未真机运行。
+
+## 2026-11-25 v0.2.0 发布记录
+
+- 发布提交 `71bedc9`；CI run [45448821770](https://github.com/MC5lan/HonestBoy-CLI/actions/runs/45448821770) 三个 job 全绿。
+- tag 与 GitHub Release：https://github.com/MC5lan/HonestBoy-CLI/releases/tag/v0.2.0
+- 三个 zip + `checksums.txt` 已上传（state=uploaded）：
+  - windows/amd64 `2bb410318249477ac899a27c546900d2805a6e16c3dee27f9e1e7806ac7bdf46`
+  - windows/arm64 `7275bca5bf80fe779dc76e472c7e847c693901c56117def531266199aef86f19`
+  - linux/amd64 `c8bccc5418175c95aaf5dddac4ffd7238331be46e991225dbf70fd14a17fd5a3`
+- winget `0.2.0` 清单与 scoop `hb.json` 已回填真实 SHA256。
+- 本机安装：覆盖 `%LOCALAPPDATA%\HB\bin\hb.exe`，旧二进制备份为 `hb.exe.0.1.0-dev.bak`；
+  `hb --version` = 0.2.0，`hb probe` 三态通过，`hb upgrade --check` 确认 0.2.0 为最新。
+- 说明：goreleaser 在本机下载安装包超时，产物用相同 ldflags 交叉编译 + zip + SHA256 手工构建；
+  winget PR 提交与干净 VM 安装/卸载仍未执行。

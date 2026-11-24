@@ -1,0 +1,16 @@
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+  - RelativeFilePath: hb.exe
+    PortableCommandAlias: hb
+PackageIdentifier: HonestBoy.hb
+PackageVersion: 0.2.0
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/MC5lan/HonestBoy-CLI/releases/download/v0.2.0/hb_0.2.0_windows_amd64.zip
+    InstallerSha256: 2bb410318249477ac899a27c546900d2805a6e16c3dee27f9e1e7806ac7bdf46
+  - Architecture: arm64
+    InstallerUrl: https://github.com/MC5lan/HonestBoy-CLI/releases/download/v0.2.0/hb_0.2.0_windows_arm64.zip
+    InstallerSha256: 7275bca5bf80fe779dc76e472c7e847c693901c56117def531266199aef86f19
+ManifestType: installer
+ManifestVersion: 1.6.0

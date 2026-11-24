@@ -81,6 +81,11 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
 42. 质量契约改常开：默认 `rigor=strict`，旧配置的 `normal` 在 Load 时收敛为 strict，
     `RigorEnabled` 恒为 true（normal/空/未知值都不能关闭），`hb config set rigor normal` 明确报错，
     `hb config list/get` 显示 `strict（常开）`。新增 `TestRigorAlwaysOn` 验证旧配置下仍注入质量契约。
+43. v0.2.0 发布：提交 `71bedc9`，CI run 45448821770 三个 job（`-race` build / e2e-windows / govuln）全绿；
+    tag 与 GitHub Release 已推送，三个 zip + `checksums.txt` 上传成功。本机覆盖安装 0.2.0
+    （旧二进制备份为 `hb.exe.0.1.0-dev.bak`），`hb probe` 三态通过，`hb upgrade --check` 确认最新；
+    winget 0.2.0 清单与 scoop `hb.json` 已回填真实 SHA256。goreleaser 本机下载超时，
+    产物用相同 ldflags 手工交叉编译 + zip + checksums 构建。
 
 ## 2026-11-23
 
