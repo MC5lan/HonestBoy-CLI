@@ -40,6 +40,8 @@ func TestSandboxEscapeCases(t *testing.T) {
 		cases = append(cases,
 			struct{ name, path string }{"drive-relative", `C:..\..\windows`},
 			struct{ name, path string }{"windows-absolute", `C:\Windows\win.ini`},
+			struct{ name, path string }{"windows-case-variant", `C:\WINDOWS\win.ini`},
+			struct{ name, path string }{"unc-path", `\\localhost\C$\Windows\win.ini`},
 			struct{ name, path string }{"long-path-prefix", `\\?\` + outside},
 		)
 	}
@@ -86,7 +88,23 @@ func TestSandboxFileRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.Close()
+	rw, err := sb.OpenFileRW("a.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rw.Close()
+	created, err := sb.Create("b.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	created.Close()
 	if _, err := sb.Stat("a.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if err := sb.Rename("b.txt", "c.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if err := sb.Remove("c.txt"); err != nil {
 		t.Fatal(err)
 	}
 	if err := sb.Remove("a.txt"); err != nil {

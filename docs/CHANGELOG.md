@@ -41,6 +41,7 @@
 - 崩溃日志统一写入 `HB/logs/crash`，不再污染工作区。
 - 二进制 e2e 增至 5 个（含无密钥退出 6、无证据 denied 退出 4）；CI 增加 `-count=10` 回归。
 - core 覆盖率 82.9% → 95.3%；补 labels/ledger/evidence/session 测试；`apply_patch` 工具动作显示“应用补丁”。
+- 沙箱逃逸用例补到 12 个；SSE/Markdown/diff 三个 fuzz 各 60s 本地通过。
 
 ## v0.1.1 - 2026-11-24
 
