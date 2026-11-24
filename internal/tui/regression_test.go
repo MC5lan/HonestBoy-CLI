@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -641,6 +642,31 @@ func TestAssistantCodeFoldsAndExpands(t *testing.T) {
 	m.Update(tea.KeyMsg{Type: tea.KeyCtrlO})
 	if strings.Contains(m.blocks[len(m.blocks)-1].rendered, "折叠") {
 		t.Fatal("ctrl+o did not expand code")
+	}
+}
+
+// 50 轮 TUI 回合后堆增长保持在 50MB 以内。
+func TestFiftyTurnsMemoryBounded(t *testing.T) {
+	m := NewModel(Config{Theme: "none", Model: "m", Workdir: "p", Run: func(prompt, sessionID string) (<-chan core.Event, <-chan error) {
+		return make(chan core.Event), make(chan error)
+	}})
+	m.setSize(100, 40)
+	runtime.GC()
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	for i := 0; i < 50; i++ {
+		m.startPrompt("任务")
+		m.applyEvent(core.Event{Type: core.EvtTextDelta, Data: core.TextDeltaData{Text: "答案"}})
+		m.applyEvent(core.Event{Type: core.EvtTurnEnd, Data: core.TurnEndData{Terminal: "untested"}})
+		m.run = nil
+		m.state = stIdle
+		_ = m.View()
+	}
+	runtime.GC()
+	runtime.ReadMemStats(&after)
+	delta := int64(after.HeapAlloc) - int64(before.HeapAlloc)
+	if delta > 50<<20 {
+		t.Fatalf("50-turn heap growth = %d bytes", delta)
 	}
 }
 
