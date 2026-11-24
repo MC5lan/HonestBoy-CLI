@@ -115,7 +115,7 @@
 依赖：M1–M4 功能稳定后集中收口，但覆盖率/回归应持续跑。目标：达到 §6.3 数字。
 
 - [x] `internal/core` 覆盖率从 82.9% 提到 95.3% (M)
-- [x] 12 个沙箱逃逸用例在 Windows 本地全过（Linux 由 CI 跑）；`guard` 100%，`sandbox` 分支仍未 100% (L)
+- [x] 12 个沙箱逃逸用例在 Windows 本地全过（Linux 由 CI 跑）；`guard` 100%，sandbox 各方法错误分支 100%（Open 75%）(L)
 - [x] Gate 反例 ≥20 个，表驱动（TestGateSixCases + CounterexampleMatrix）(M)
 - [x] `testdata/sessions` 12 个文件化回放样本，覆盖 done/untested/denied/halt (M)
 - [x] 二进制 e2e 补到 5 个：无密钥退出 6、无证据退出 4、untested 3 等（中断/篡改仍待补）(M)

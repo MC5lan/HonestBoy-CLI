@@ -54,6 +54,41 @@ func TestSandboxEscapeCases(t *testing.T) {
 	}
 }
 
+func TestSandboxMethodErrorBranches(t *testing.T) {
+	sb, dir := newTempSandbox(t)
+	if _, err := Open(filepath.Join(dir, "missing")); err == nil {
+		t.Fatal("Open(missing) should fail")
+	}
+	if _, err := Open(filepath.Join(dir, "file.txt")); err == nil {
+		_ = os.WriteFile(filepath.Join(dir, "file.txt"), []byte("x"), 0o600)
+		if _, err2 := Open(filepath.Join(dir, "file.txt")); err2 == nil {
+			t.Fatal("Open(file) should fail")
+		}
+	}
+	escape := "../outside"
+	if _, err := sb.OpenFile(escape); err == nil {
+		t.Fatal("OpenFile escape")
+	}
+	if _, err := sb.Create(escape); err == nil {
+		t.Fatal("Create escape")
+	}
+	if _, err := sb.OpenFileRW(escape); err == nil {
+		t.Fatal("OpenFileRW escape")
+	}
+	if _, err := sb.Stat(escape); err == nil {
+		t.Fatal("Stat escape")
+	}
+	if err := sb.Remove(escape); err == nil {
+		t.Fatal("Remove escape")
+	}
+	if err := sb.Rename(escape, "x"); err == nil {
+		t.Fatal("Rename old escape")
+	}
+	if err := sb.Rename("x", escape); err == nil {
+		t.Fatal("Rename new escape")
+	}
+}
+
 func TestSandboxNormalPaths(t *testing.T) {
 	sb, dir := newTempSandbox(t)
 	cases := map[string]string{
