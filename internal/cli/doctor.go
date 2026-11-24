@@ -20,7 +20,20 @@ type checkResult struct {
 
 // RunDoctor 环境自检：只诊断，不修改配置（除临时文件即刻删除）。
 func RunDoctor(opts GlobalOptions, args []string) error {
+	fix := false
+	for _, arg := range args {
+		if arg == "--fix" {
+			fix = true
+		}
+	}
 	cfg, cfgErr := store.Load()
+	fixed := false
+	if cfgErr != nil && fix {
+		cfg = store.DefaultConfig()
+		if err := store.Save(cfg); err == nil {
+			cfgErr, fixed = nil, true
+		}
+	}
 	var checks []checkResult
 
 	checks = append(checks, checkResult{
@@ -28,9 +41,13 @@ func RunDoctor(opts GlobalOptions, args []string) error {
 		ok:  strings.Contains(runtime.Version(), "go1.2") || strings.Contains(runtime.Version(), "go1.3"),
 		fix: "需要 Go 1.27+",
 	})
+	configDetail := store.ConfigPath()
+	if fixed {
+		configDetail += "（已重建默认配置）"
+	}
 	checks = append(checks, checkResult{
-		name: "配置可读", detail: store.ConfigPath(), ok: cfgErr == nil,
-		fix: "检查路径权限与 JSON 格式，或 hb config list",
+		name: "配置可读", detail: configDetail, ok: cfgErr == nil,
+		fix: "检查路径权限与 JSON 格式，或 hb doctor --fix",
 	})
 	keyName := firstNonEmpty(cfg.APIKeyEnv, "HB_API_KEY")
 	checks = append(checks, checkResult{

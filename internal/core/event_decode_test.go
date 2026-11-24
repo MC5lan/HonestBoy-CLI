@@ -26,6 +26,7 @@ func TestUnmarshalEventRoundTrip(t *testing.T) {
 		{"usage", EvtUsage, UsageData{TokensIn: 1, TokensOut: 2, PromptTokens: 3, SystemTokens: 4, HBMTokens: 5, HistoryTokens: 6, ToolTokens: 7}},
 		{"error", EvtError, ErrorData{Code: "E", Message: "m"}},
 		{"session_end", EvtSessionEnd, SessionEndData{Terminal: "done"}},
+		{"profile", EvtProfile, ProfileData{TotalMS: 10, ContextMS: 2, StreamMS: 3, FirstTokenMS: 1, ToolMS: 4, ToolCalls: 2}},
 	}
 	s := &Session{ID: "s"}
 	for _, tc := range cases {

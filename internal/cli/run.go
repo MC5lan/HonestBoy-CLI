@@ -100,7 +100,13 @@ func RunRun(opts GlobalOptions, args []string) error {
 	events, errs := eng.Run(ctx, prompt)
 	terminal := core.TermFailed
 	seenTurnEnd := false
+	var profile core.ProfileData
 	for ev := range events {
+		if ev.Type == core.EvtProfile {
+			if d, ok := ev.Data.(core.ProfileData); ok {
+				profile = d
+			}
+		}
 		if opts.JSON {
 			if err := WriteJSONEvent(os.Stdout, ev); err != nil {
 				return err
@@ -125,6 +131,10 @@ func RunRun(opts GlobalOptions, args []string) error {
 	}
 	if !seenTurnEnd {
 		return ErrEnvironment
+	}
+	if opts.Profile && !opts.JSON {
+		fmt.Fprintf(os.Stdout, "\nprofile  总 %dms · 上下文 %dms · 流 %dms · 首 token %dms · 工具 %dms（%d 次）\n",
+			profile.TotalMS, profile.ContextMS, profile.StreamMS, profile.FirstTokenMS, profile.ToolMS, profile.ToolCalls)
 	}
 	if terminal == core.TermDone {
 		return nil

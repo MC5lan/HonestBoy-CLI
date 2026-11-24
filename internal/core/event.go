@@ -22,6 +22,7 @@ const (
 	EvtUsage          EventType = "usage"
 	EvtError          EventType = "error"
 	EvtSessionEnd     EventType = "session_end"
+	EvtProfile        EventType = "profile"
 )
 
 // Event 是系统唯一真相；一经产出不得修改。
@@ -105,4 +106,14 @@ type ErrorData struct {
 // SessionEndData 标记会话正常收尾；缺失它说明进程被强杀或崩溃。
 type SessionEndData struct {
 	Terminal string
+}
+
+// ProfileData 是一次回合的耗时汇总（毫秒），供 hb run --profile 使用。
+type ProfileData struct {
+	TotalMS      int64
+	ContextMS    int64
+	StreamMS     int64
+	FirstTokenMS int64
+	ToolMS       int64
+	ToolCalls    int
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/MC5lan/HonestBoy-CLI/internal/store"
 )
 
-// 直接验证 recoverCrash 写崩溃日志；它只依赖 Engine 的 workdir 与 session。
+// 直接验证 recoverCrash 写崩溃日志；日志统一落到 HB logs/crash，不污染工作区。
 func TestCrashRecovery(t *testing.T) {
 	dir := t.TempDir()
 	eng := &Engine{
@@ -22,7 +22,7 @@ func TestCrashRecovery(t *testing.T) {
 		defer recoverCrash(eng)
 		panic("injected boom")
 	}()
-	crashDir := filepath.Join(dir, ".hb-crash")
+	crashDir := filepath.Join(dir, "logs", "crash")
 	entries, err := os.ReadDir(crashDir)
 	if err != nil || len(entries) == 0 {
 		t.Fatalf("no crash log: %v", err)

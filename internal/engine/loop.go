@@ -80,6 +80,7 @@ func (e *Engine) runTurn(ctx context.Context, input, history string) (core.Termi
 		}
 		extra += "## 之前回合\n" + history
 	}
+	contextStart := time.Now()
 	hbContext := LoadProjectContext(e.cfg.Workdir, e.cfg.HBMDLimit)
 	sys := AssembleContext(systemPrompt, hbContext, EnvContext(e.cfg.Workdir), extra, "")
 	if e.cfg.PlanMode {
@@ -99,6 +100,7 @@ func (e *Engine) runTurn(ctx context.Context, input, history string) (core.Termi
 			e.emit(core.EvtNotice, core.NoticeData{Level: "info", Text: fmt.Sprintf("注入了 %d 条历史失败案例", len(hits))})
 		}
 	}
+	e.profile.ContextMS += time.Since(contextStart).Milliseconds()
 	messages := []llm.Message{
 		{Role: "system", Content: sys},
 		{Role: "user", Content: input},
@@ -125,6 +127,8 @@ steps:
 			Model: e.cfg.Model, Messages: messages, Tools: specs,
 			MaxTokens: e.cfg.MaxOutputTokens, ReasoningEffort: e.cfg.ReasoningEffort,
 		}
+		streamStart := time.Now()
+		firstChunkAt := time.Time{}
 		chunks, errCh := e.cfg.ResolveClient().Stream(ctx, req)
 		var text strings.Builder
 		var reasoning strings.Builder
@@ -146,6 +150,9 @@ steps:
 					truncated = true
 				}
 				if c.Text != "" {
+					if firstChunkAt.IsZero() {
+						firstChunkAt = time.Now()
+					}
 					text.WriteString(c.Text)
 					e.emit(core.EvtTextDelta, core.TextDeltaData{Text: c.Text})
 				}
@@ -168,6 +175,10 @@ steps:
 			case <-ctx.Done():
 				return core.TermHalt, ctx.Err()
 			}
+		}
+		e.profile.StreamMS += time.Since(streamStart).Milliseconds()
+		if e.profile.FirstTokenMS == 0 && !firstChunkAt.IsZero() {
+			e.profile.FirstTokenMS = firstChunkAt.Sub(streamStart).Milliseconds()
 		}
 		if stepUsage.In > 0 || stepUsage.Out > 0 {
 			e.usage.Add(stepUsage)
@@ -471,6 +482,8 @@ steps:
 				if r.Meta != nil && r.Meta["exit_code"] != "" {
 					_, _ = fmt.Sscanf(r.Meta["exit_code"], "%d", &exitCode)
 				}
+				e.profile.ToolMS += durationMS
+				e.profile.ToolCalls++
 				e.emit(core.EvtToolEnd, core.ToolEndData{
 					CallID: call.ID, OK: r.OK, ExitCode: exitCode,
 					DurationMS: durationMS,

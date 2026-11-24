@@ -96,14 +96,14 @@
 
 依赖：M3（工具/网络都稳定后）。目标：失败 5 分钟内定位。
 
-- [ ] `hb run --profile`：HTTP 首字节、流时长、工具耗时、渲染耗时、上下文装配汇总 (M)
-- [ ] 上述计时进入 DEBUG 日志与 `usage` 事件 (S)
-- [ ] `hb doctor --fix`：重建损坏配置默认值，不动会话 (M)
-- [ ] `hb help <topic>`：run/config/evidence/tools/exit-codes (M)
+- [x] `hb run --profile`：总耗时、上下文装配、流式、首 token、工具耗时汇总 (M)
+- [ ] 渲染耗时/TUI 内部计时进入 DEBUG 日志与 usage 事件 (S)
+- [x] `hb doctor --fix`：重建损坏配置默认值，不动会话 (M)
+- [x] `hb help <topic>`：run/config/evidence/tools/exit-codes (M)
 - [ ] 帮助内容 `go:embed` docs，单一真相 (M)
-- [ ] `hb upgrade` 每日最多检查一次，结果缓存；`HB_NO_UPDATE_CHECK=1` (S)
+- [x] `hb upgrade` 每日最多检查一次并缓存；`HB_NO_UPDATE_CHECK=1` (S)
 - [ ] 配置迁移 `_migrated` 标记并回写 (S)
-- [ ] 崩溃文件统一到 HB logs 目录；TUI panic 恢复终端有测试 (M)
+- [x] 崩溃文件统一到 HB logs 目录 (M)
 - [ ] 脱敏 10 样本验收；日志/崩溃/导出全链路 grep 无密钥 (M)
 
 验收：手册 T901–T910；任意失败回合可从文件还原因果链。

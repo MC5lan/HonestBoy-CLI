@@ -13,7 +13,7 @@ import (
 // recoverCrash 在引擎主循环最外层捕获 panic，写崩溃日志并尝试 flush 会话（T904）。
 func recoverCrash(e *Engine) {
 	if r := recover(); r != nil {
-		dir := filepath.Join(e.cfg.Workdir, ".hb-crash")
+		dir := filepath.Join(e.store.Paths.Logs, "crash")
 		_ = os.MkdirAll(dir, 0o700)
 		name := filepath.Join(dir, "crash-"+time.Now().Format("20060102-150405.000")+".log")
 		content := fmt.Sprintf("panic: %v\n\n%s", r, debug.Stack())

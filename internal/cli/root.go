@@ -21,6 +21,7 @@ type GlobalOptions struct {
 	Plan       bool
 	AutoCommit bool
 	Diff       bool
+	Profile    bool
 	Yes        bool
 	NoColor    bool
 	Debug      bool
@@ -50,6 +51,8 @@ func Execute(args []string) error {
 			opts.AutoCommit = true
 		case "--diff":
 			opts.Diff = true
+		case "--profile":
+			opts.Profile = true
 		case "--yes":
 			opts.Yes = true
 		case "--no-color":
@@ -173,6 +176,12 @@ func Execute(args []string) error {
 		}
 		return RunExplain(opts, tail)
 	case "help":
+		if len(tail) > 0 {
+			if !PrintHelpTopic(os.Stdout, tail[0]) {
+				return fmt.Errorf("%w: 未知帮助主题 %s（可用 run/config/evidence/tools/exit-codes）", ErrUsage, tail[0])
+			}
+			return nil
+		}
 		PrintHelp(os.Stdout)
 		return nil
 	default:

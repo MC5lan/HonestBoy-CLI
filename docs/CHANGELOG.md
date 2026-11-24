@@ -33,6 +33,13 @@
 - Registry 输出真实声明，注册时校验 schema 与重名。
 - 删除 `RunChat`/`RunResume` 死代码。
 
+### 可观测与运维
+
+- `hb run --profile` 输出总耗时、上下文装配、流式、首 token、工具耗时。
+- `hb doctor --fix` 重建损坏配置；`hb help <topic>` 提供 run/config/evidence/tools/exit-codes。
+- `hb upgrade --check` 24 小时缓存；`HB_NO_UPDATE_CHECK=1` 可关闭检查。
+- 崩溃日志统一写入 `HB/logs/crash`，不再污染工作区。
+
 ## v0.1.1 - 2026-11-24
 
 ### 自更新

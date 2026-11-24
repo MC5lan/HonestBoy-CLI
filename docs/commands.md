@@ -13,22 +13,23 @@
 | `hb stats` | 统计 | 否 |
 | `hb probe` | 三态探针 | 否 |
 | `hb config` | 配置查看/设置 | 否 |
-| `hb doctor` | 环境自检 | 否 |
+| `hb doctor [--fix]` | 环境自检；`--fix` 重建损坏配置 | 否 |
 | `hb explain <code>` | 查询错误码 | 否 |
 | `hb gc [--yes]` | 清理超过 90 天的会话与超过 14 天的日志；默认预演 | 否 |
 | `hb export <id> [--redact]` | 导出会话 jsonl；`--redact` 用统一脱敏规则 | 否 |
-| `hb upgrade [--check] [--force] [--timeout <dur>]` | 检查并安装最新 release（SHA256 校验；`--check` 只检查；默认 15 分钟超时，失败自动重试） | 否 |
+| `hb upgrade [--check] [--force] [--timeout <dur>]` | 检查并安装最新 release（SHA256 校验；`--check` 只检查并缓存 24h；默认 15 分钟超时，失败自动重试；`HB_NO_UPDATE_CHECK=1` 关闭） | 否 |
 | `hb undo` | 撤销最近一次自动提交（保留文件改动） | 否 |
 | `hb diff` | 查看当前工作区 diff | 否 |
 | `hb approve <id>` | 批准计划并执行（先 `hb run --plan`） | 否 |
 | `hb rewind list` | 列出检查点（默认最近会话） | 否 |
 | `hb rewind restore <id>` | 恢复代码到检查点（对话历史保留） | 否 |
-| `hb help` | 打印帮助 | 否 |
+| `hb help [topic]` | 打印帮助；topic: run/config/evidence/tools/exit-codes | 否 |
 
 全局 flag：`--model` `--protocol` `--base-url` `--cwd` `--json` `--quiet`
-`--yes` `--plan` `--diff` `--auto-commit` `--timeout` `--max-turns` `--no-color` `--debug` `--version` `--help`
+`--yes` `--plan` `--diff` `--profile` `--auto-commit` `--timeout` `--max-turns` `--no-color` `--debug` `--version` `--help`
 
 `--diff`：把当前工作区的 `git diff` 追加到任务上下文，适合“只改这些改动”的场景。
+`--profile`：回合结束后输出总耗时、上下文装配、流式、首 token、工具耗时汇总。
 
 `--auto-commit`（Aider 风格）：回合开始前把用户已有脏改动单独提交；回合结束后若有写操作则自动提交，
 并产出 `diff_review` 事件（提交号/文件列表/统计）供 TUI 与日志审阅。用 `hb undo` 撤销、`hb diff` 查看。

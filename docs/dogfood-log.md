@@ -48,6 +48,9 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
     与异常退出标记、注册表 schema/声明校验；删除 `RunChat`/`RunResume` 死代码。
 32. M3 收尾：同一模型步只读工具并行；会话超过 50MB 自动分片，
     Load/List/Delete/AllReceipts 合并分片并有回归测试。
+33. M4 可观测：`--profile` 耗时汇总、`doctor --fix`、`help <topic>`、
+    update 24h 缓存/关闭开关、崩溃日志移入 HB logs。`go:embed` 帮助、
+    `_migrated` 配置迁移与 10 样本脱敏审计仍未做。
 
 ## 2026-11-23
 

@@ -73,6 +73,7 @@ type Engine struct {
 	hook            *EvidenceHook
 	usage           llm.Usage
 	lastReceipt     string
+	profile         core.ProfileData
 	registry        *tools.Registry
 	approval        ApprovalPolicy
 	approvalHandler ApprovalHandler
@@ -171,6 +172,7 @@ func (e *Engine) Run(ctx context.Context, prompt string) (<-chan core.Event, <-c
 		}()
 		e.out = events
 		e.startTime = time.Now().UTC()
+		e.profile = core.ProfileData{}
 
 		var s *core.Session
 		if e.cfg.ResumeID != "" {
@@ -216,6 +218,8 @@ func (e *Engine) Run(ctx context.Context, prompt string) (<-chan core.Event, <-c
 		if e.cfg.AutoCommit && e.didWrite {
 			e.autoCommit(prompt)
 		}
+		e.profile.TotalMS = time.Since(e.startTime).Milliseconds()
+		e.emit(core.EvtProfile, e.profile)
 		e.emit(core.EvtTurnEnd, core.TurnEndData{
 			Terminal: string(terminal), DurationMS: time.Since(e.startTime).Milliseconds(),
 			TokensIn: e.usage.In, TokensOut: e.usage.Out, ReceiptID: e.lastReceipt,

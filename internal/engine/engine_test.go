@@ -123,6 +123,9 @@ func TestRunEmitsSessionEnd(t *testing.T) {
 	if countEvents(rs, core.EvtSessionEnd) != 1 {
 		t.Fatalf("session_end count = %d", countEvents(rs, core.EvtSessionEnd))
 	}
+	if countEvents(rs, core.EvtProfile) != 1 {
+		t.Fatalf("profile count = %d", countEvents(rs, core.EvtProfile))
+	}
 }
 
 func TestEngineNoEvidenceDenied(t *testing.T) {

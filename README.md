@@ -67,7 +67,7 @@ hb                                 # TUI（需要 TTY）
 | 命令 | 说明 |
 |---|---|
 | `hb` / `hb chat` | 启动 TUI（需要 TTY） |
-| `hb run <prompt>` | 单次执行；`--plan` 先出计划，`--diff` 注入工作区 diff，`--auto-commit` 自动提交 |
+| `hb run <prompt>` | 单次执行；`--plan` 先出计划，`--diff` 注入工作区 diff，`--profile` 输出耗时，`--auto-commit` 自动提交 |
 | `hb probe` | 三态探针，离线验证 Gate |
 | `hb verify` / `hb stats` | 校验证据链 / 诚实度统计 |
 | `hb sessions` / `hb resume <id>` | 会话列表 / 恢复 |

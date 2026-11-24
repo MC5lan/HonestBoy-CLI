@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/MC5lan/HonestBoy-CLI/internal/store"
 )
 
 const (
@@ -40,6 +42,10 @@ type releaseInfo struct {
 // RunUpgrade 实现 hb upgrade：检查最新 release、校验 SHA256、替换自身二进制。
 // --check 只报告；--api 覆盖 API 根地址；--dest 覆盖目标路径（测试与自定义安装用）。
 func RunUpgrade(opts GlobalOptions, args []string) error {
+	if os.Getenv("HB_NO_UPDATE_CHECK") != "" {
+		fmt.Fprintln(os.Stdout, "更新检查已禁用（HB_NO_UPDATE_CHECK=1）")
+		return nil
+	}
 	var checkOnly, force bool
 	api := releaseAPI
 	dest := ""
@@ -89,6 +95,17 @@ func RunUpgrade(opts GlobalOptions, args []string) error {
 		dest = exe
 	}
 
+	if checkOnly && api == releaseAPI && !force {
+		if latest, ok := cachedLatestRelease(24 * time.Hour); ok {
+			fmt.Fprintf(os.Stdout, "当前版本 %s，最新版本 %s（24 小时缓存）\n", Version, latest)
+			if compareVersion(latest, Version) > 0 {
+				fmt.Fprintln(os.Stdout, "有新版本可用：hb upgrade")
+			} else {
+				fmt.Fprintln(os.Stdout, "已是最新版本")
+			}
+			return nil
+		}
+	}
 	rel, err := fetchRelease(api, timeout)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrEnvironment, err)
@@ -96,6 +113,9 @@ func RunUpgrade(opts GlobalOptions, args []string) error {
 	latest := strings.TrimPrefix(rel.TagName, "v")
 	fmt.Fprintf(os.Stdout, "当前版本 %s，最新版本 %s\n", Version, latest)
 	if checkOnly {
+		if api == releaseAPI {
+			saveLatestRelease(latest)
+		}
 		if compareVersion(latest, Version) > 0 {
 			fmt.Fprintln(os.Stdout, "有新版本可用：hb upgrade")
 		} else {
@@ -149,6 +169,39 @@ func RunUpgrade(opts GlobalOptions, args []string) error {
 	}
 	fmt.Fprintf(os.Stdout, "已更新到 %s（%s）。重启后生效。\n", latest, dest)
 	return nil
+}
+
+type updateCache struct {
+	CheckedAt time.Time `json:"checked_at"`
+	Latest    string    `json:"latest"`
+}
+
+func updateCachePath() string {
+	return filepath.Join(store.DefaultPaths().Root, "update-check.json")
+}
+
+func cachedLatestRelease(maxAge time.Duration) (string, bool) {
+	raw, err := os.ReadFile(updateCachePath())
+	if err != nil {
+		return "", false
+	}
+	var c updateCache
+	if json.Unmarshal(raw, &c) != nil || c.Latest == "" {
+		return "", false
+	}
+	if time.Since(c.CheckedAt) > maxAge {
+		return "", false
+	}
+	return c.Latest, true
+}
+
+func saveLatestRelease(latest string) {
+	raw, err := json.Marshal(updateCache{CheckedAt: time.Now().UTC(), Latest: latest})
+	if err != nil {
+		return
+	}
+	_ = os.MkdirAll(filepath.Dir(updateCachePath()), 0o700)
+	_ = os.WriteFile(updateCachePath(), raw, 0o600)
 }
 
 func fetchRelease(api string, timeout time.Duration) (releaseInfo, error) {
