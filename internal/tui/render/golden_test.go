@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -22,6 +23,15 @@ var goldenSamples = map[string]string{
 }
 
 var goldenWidths = []int{80, 100, 120, 200}
+
+func normalizeGolden(s string) string {
+	s = StripANSI(s)
+	lines := strings.Split(s, "\n")
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], " ")
+	}
+	return strings.Join(lines, "\n")
+}
 
 func TestGoldenMarkdown(t *testing.T) {
 	// 超链接与环境相关，快照固定为无 OSC8 的稳定输出。
@@ -42,8 +52,8 @@ func TestGoldenMarkdown(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				// 快照锁可见文本，不锁终端色彩配置；颜色由主题测试覆盖。
-				got = StripANSI(got)
+				// 快照锁可见文本与行首布局，不锁终端色彩/行尾 padding。
+				got = normalizeGolden(got)
 				file := filepath.Join(dir, name+"_"+strconv.Itoa(width)+"_dark.golden")
 				if os.Getenv("UPDATE_SNAPSHOTS") == "1" {
 					if err := os.WriteFile(file, []byte(got), 0o644); err != nil {

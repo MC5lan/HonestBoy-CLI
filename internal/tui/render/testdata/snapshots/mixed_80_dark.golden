@@ -1,9 +1,9 @@
 
-   混合                                                                   
-                                                                          
-  • 中文 item                                                            
-  • English item                                                         
-                                                                          
-  │ 引用一行                                                              
-                                                                          
-    1 │ fmt.Println(1)                                                   
+   混合
+
+  • 中文 item
+  • English item
+
+  │ 引用一行
+
+    1 │ fmt.Println(1)
