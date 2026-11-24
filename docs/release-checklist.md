@@ -71,3 +71,24 @@ Windows 下旧文件先改名为 `hb.exe.old`，下次启动自动清理。
 - 在 `docs/tech-debt.md` 关闭 D05（清单哈希）与 D06（真实升级验证）。
 - 提交 winget/scoop 清单（各自仓库 PR）。
 - 记录真实升级结果到 `docs/dogfood-log.md`。
+
+## 2026-11-24 v0.1.0 发布演练记录
+
+已通过：
+
+- CI run `45354988179`（commit `5ff1008`）：`build`（Linux `-race`）、`e2e-windows`、`govuln` 全绿。
+- ConPTY 真实 TUI：启动、`?` 帮助、`/` 命令面板、`/config`、Ctrl+C 退出。
+- 真实模型闭环：临时 Go 仓库修复 `Add`，读取 → 编辑 → test → build → vet → Gate `done`，
+  10.8 秒，输入 12425 / 输出 782 tokens，退出码 0。
+- `goreleaser release --skip=publish --clean`（本地 tag `v0.1.0`）：
+  三个 zip + `checksums.txt`，SHA256 全部匹配，Windows 解压产物 `--version` / `probe` 正常。
+- `hb upgrade --api <local>`：下载 `v0.1.0` 资产、校验 SHA256、替换二进制，
+  升级后版本为 `0.1.0`。
+
+尚未完成，不能据此直接宣布正式发布：
+
+- `v0.1.0` tag 仅存在本地，尚未 push。
+- 未创建 GitHub Release；`GITHUB_TOKEN` 未配置。
+- winget/scoop 的 SHA256 仍为占位符，必须在真实 release 产物生成后回填。
+- `hb upgrade` 尚未对真实 GitHub release 验证（D06）。
+- 本机未跑 `-race`（无 gcc）；由 CI 覆盖。

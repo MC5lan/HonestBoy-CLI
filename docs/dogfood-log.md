@@ -20,6 +20,10 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
 19. 多轮上下文实际不存在：引擎每回合新建 `core.Session`，`messages` 只有 system + 本轮输入。
     现在 TUI 传 `session_id`，`store.Open` 续接会话，`historyText` 注入上一轮历史；Receipt 链继续追加。
 20. `hb resume` 从其他目录恢复时以会话记录的工作区为准，避免沙箱与历史错位；`/sessions` 仅列当前工作区会话。
+21. v0.1.0 发布演练：CI 三个 job 全绿（含 Linux `-race`）；ConPTY 真实 TUI 的启动/帮助/命令面板/`/config`/Ctrl+C 通过；
+    真实模型在临时 Go 仓库完成“修 Add → test/build/vet → Gate `done`”，10.8 秒、退出码 0；
+    `goreleaser --skip=publish` 产物 SHA256 全部匹配，本地 `hb upgrade` 成功升级到 `0.1.0`。
+    尚未 push tag / 创建 GitHub Release；winget/scoop 哈希仍待真实 release 产物回填。
 
 ## 2026-11-23
 
