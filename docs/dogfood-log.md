@@ -98,7 +98,8 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
 46. v0.3.0 发布：会话级续跑、`--auto-resume`、可读输出修正进入正式版；
     tag/Release 已推送，三个 zip + checksums 上传，winget/scoop 0.3.0 回填真实 SHA256；
     本机覆盖安装 0.3.0（旧 0.2.0 备份为 `hb.exe.0.2.0.bak`），`hb probe` 与 `hb upgrade --check` 验证通过。
-    winget 新包 PR #488872 已提交（个人项目 CLA 已签），等待 wingetbot 校验与维护者合并。
+    winget 新包 PR #488872 已提交（个人项目 CLA 已签）；01–07 校验通过，
+    08 安装验证在 Microsoft 外部队列等待。
 
 ## 2026-11-23
 

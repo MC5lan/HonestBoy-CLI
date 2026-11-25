@@ -127,4 +127,5 @@ Windows 下旧文件先改名为 `hb.exe.old`，下次启动自动清理。
 - 本机安装：覆盖 `%LOCALAPPDATA%\HB\bin\hb.exe`，旧 0.2.0 备份为 `hb.exe.0.2.0.bak`。
 - 说明：goreleaser 仍未在本机运行；产物用相同 ldflags 手工交叉编译。
 - winget 新包 PR 已提交：https://github.com/microsoft/winget-pkgs/pull/488872；
-  CLA 已按个人项目签署，等待 wingetbot 校验与维护者合并。
+  CLA 已按个人项目签署；校验 01–07（manifest/URL/策略/目录/扫描）通过，
+  08 安装验证在 Microsoft 校验队列等待（外部队列，非本地阻塞）。
