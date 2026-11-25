@@ -119,15 +119,17 @@ func Execute(args []string) error {
 		}
 	}
 	if len(rest) == 0 {
+		// 非交互环境（CI、winget 的安装后探测等）绝不能进入设置向导或 TUI：
+		// stdin/stdout 不是终端时启动 RunInit 会一直等待输入，表现为挂死。
+		if !hasTTY() {
+			PrintHelp(os.Stdout)
+			return nil
+		}
 		if needsSetup() {
 			fmt.Fprintln(os.Stdout, "看起来是第一次使用 Honest Boy，先做一下设置：")
 			return RunInit(opts, nil)
 		}
-		if hasTTY() {
-			return ErrInteractive
-		}
-		PrintHelp(os.Stdout)
-		return nil
+		return ErrInteractive
 	}
 	cmd, tail := rest[0], rest[1:]
 	switch cmd {

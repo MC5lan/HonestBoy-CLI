@@ -518,6 +518,39 @@ func TestBinaryResumeAfterDisconnect(t *testing.T) {
 	}
 }
 
+// 无 TTY 且无配置时，`hb` 必须打印帮助，不能启动设置向导（否则 winget 安装后探测会挂死）。
+func TestBinaryNoArgsNonTTY(t *testing.T) {
+	skipUnlessE2E(t)
+	root := moduleRoot(t)
+	bin := buildBinary(t, root)
+	home := t.TempDir()
+	cmd := exec.Command(bin)
+	cmd.Env = append(isolatedEnv(t, root), "LOCALAPPDATA="+home)
+	done := make(chan struct{})
+	var out []byte
+	var err error
+	go func() {
+		out, err = cmd.CombinedOutput()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		_ = cmd.Process.Kill()
+		t.Fatal("hb with no args hung in a non-TTY environment")
+	}
+	if err != nil {
+		t.Fatalf("hb with no args failed: %v\n%s", err, out)
+	}
+	text := string(out)
+	if strings.Contains(text, "先做一下设置") || strings.Contains(text, "直接回车使用默认值") {
+		t.Fatalf("non-TTY must not start the setup wizard:\n%s", text)
+	}
+	if !strings.Contains(text, "hb run") {
+		t.Fatalf("help not printed:\n%s", text)
+	}
+}
+
 // TD04 F20 真实测量：端点连不上时退出 6，且提示可执行（不是裸 dial 错误）。
 func TestBinaryNetworkDownMessage(t *testing.T) {
 	skipUnlessE2E(t)
