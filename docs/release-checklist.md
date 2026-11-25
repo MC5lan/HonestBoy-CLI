@@ -115,3 +115,14 @@ Windows 下旧文件先改名为 `hb.exe.old`，下次启动自动清理。
   `hb --version` = 0.2.0，`hb probe` 三态通过，`hb upgrade --check` 确认 0.2.0 为最新。
 - 说明：goreleaser 在本机下载安装包超时，产物用相同 ldflags 交叉编译 + zip + SHA256 手工构建；
   winget PR 提交与干净 VM 安装/卸载仍未执行。
+
+## 2026-11-25 v0.3.0 发布记录
+
+- 发布提交 `bdf573b`；tag 与 GitHub Release：https://github.com/MC5lan/HonestBoy-CLI/releases/tag/v0.3.0
+- 三个 zip + `checksums.txt` 已上传（state=uploaded）：
+  - windows/amd64 `7c2c2ae1116aade240881f4c8db8cbe46e9bf6681b5d4cc75f812cd5e6e59d30`
+  - windows/arm64 `e0b9d797889040648d62087250efb090cd5b54cd8748776df291786d49bd9126`
+  - linux/amd64 `c2e1ff604ec81414a6ca3305aae5e594f080a8e8c0adfb188b7a02ebd4026b50`
+- winget `0.3.0` 清单与 scoop `hb.json` 已回填真实 SHA256。
+- 本机安装：覆盖 `%LOCALAPPDATA%\HB\bin\hb.exe`，旧 0.2.0 备份为 `hb.exe.0.2.0.bak`。
+- 说明：goreleaser 仍未在本机运行；产物用相同 ldflags 手工交叉编译。

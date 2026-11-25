@@ -95,6 +95,9 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
     现在 CLI/TUI 过滤控制块并保留正常正文，历史注入与续跑提示同样只看正文；GateAllow/TurnEnd 携带并显示最终摘要；
     系统提示要求模型在 request_done 前用 1–3 句话说明做了什么/验证了什么/还有什么没做。
     另加 `hb run --auto-resume`：无新任务时自动续跑最近未完成会话。
+46. v0.3.0 发布：会话级续跑、`--auto-resume`、可读输出修正进入正式版；
+    tag/Release 已推送，三个 zip + checksums 上传，winget/scoop 0.3.0 回填真实 SHA256；
+    本机覆盖安装 0.3.0（旧 0.2.0 备份为 `hb.exe.0.2.0.bak`），`hb probe` 与 `hb upgrade --check` 验证通过。
 
 ## 2026-11-23
 
