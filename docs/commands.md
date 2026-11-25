@@ -9,6 +9,7 @@
 | `hb`（无参数） | 有 TTY 时启动 TUI，无 TTY 打印帮助 | 条件 |
 | `hb sessions` | 列出/查看/删除会话 | 否 |
 | `hb resume <id>` | 恢复会话（TUI 回放历史并可继续） | 是 |
+| `hb resume --last` | 非交互续跑当前工作区最近一条未完成会话；最多 2 次 | 否 |
 | `hb verify` | 校验证据链 | 否 |
 | `hb stats` | 统计 | 否 |
 | `hb probe` | 三态探针 | 否 |
@@ -26,7 +27,8 @@
 | `hb help [topic]` | 打印帮助；topic: run/config/evidence/tools/exit-codes | 否 |
 
 全局 flag：`--model` `--protocol` `--base-url` `--cwd` `--json` `--quiet`
-`--yes` `--plan` `--diff` `--profile` `--auto-commit` `--timeout` `--max-turns` `--no-color` `--debug` `--version` `--help`
+`--yes` `--plan` `--diff` `--profile` `--auto-commit` `--auto-resume` `--timeout` `--max-turns`
+`--no-color` `--debug` `--version` `--help`
 
 `--diff`：把当前工作区的 `git diff` 追加到任务上下文，适合“只改这些改动”的场景。
 `--profile`：回合结束后输出总耗时、上下文装配、流式、首 token、工具耗时汇总。
@@ -36,6 +38,15 @@
 
 `--plan` 进入计划模式：只暴露只读工具，模型输出执行计划后回合以 `halt` 暂停并把计划写入 Receipt；
 用 `hb approve <session-id>` 批准并按计划执行。
+
+`hb resume --last` 用于系统层面中断后的恢复：查找当前工作区最近一条未完成会话
+（强杀留下的无 `session_end` 会话、超时、网络中断或可重试失败），把原始任务、
+已完成/失败的工具和上次输出注入上下文，再从断点继续。
+已完成的工具不会自动重放；用户主动 `Ctrl+C` 或 `untested`/`denied`/`done` 的会话不会被恢复。
+同一会话最多续跑 2 次，超过要求人工检查；可附加一句补充要求：`hb resume --last "先跑测试"`。
+
+`hb run --auto-resume`（不带任务内容）等价于自动执行 `hb resume --last`，适合开机脚本或定时任务；
+带任务内容时仍按新任务处理。用户主动中断、`untested`/`denied`/`done` 的会话不会被自动续跑。
 
 ## TUI 内命令
 

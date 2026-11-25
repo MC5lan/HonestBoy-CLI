@@ -83,11 +83,12 @@ func RunApprove(opts GlobalOptions, args []string) error {
 	defer cancel()
 	events, errs := eng.Run(ctx, plan)
 	terminal := core.TermFailed
+	human := NewHumanWriter(os.Stdout)
 	for ev := range events {
 		if opts.JSON {
 			_ = WriteJSONEvent(os.Stdout, ev)
 		} else {
-			_ = WriteHumanEvent(os.Stdout, ev)
+			_ = human.WriteEvent(ev)
 		}
 		if ev.Type == core.EvtTurnEnd {
 			if d, ok := ev.Data.(core.TurnEndData); ok {

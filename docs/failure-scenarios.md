@@ -73,7 +73,7 @@
 | F22 | 429 / 5xx 瞬态失败 | `TestWithRetrySucceedsAfterFailures`、`TestUpgradeRetriesTransientAsset` | 自动重试 3 次后成功或报错 | 是 | **A** |
 | F23 | 认证失败（密钥错误） | `TestFriendlyErrorAuth` | "密钥不对"（不暴露原始 JSON） | 是：检查环境变量 | **A** |
 | F24 | SSE 非法 JSON / 超长行 / 回调错误 | `TestChatStreamInvalidJSONSkipped`、`TestParseSSELongLineNoPanic`、`TestParseSSECallbackError` | 跳过非法块；超长行报错；不 panic | 部分 | **A** |
-| F25 | SSE 中途断连 | `TestChatDisconnectNoPanic`（`DisconnectAt=1`，丢掉 `[DONE]`） | 按已收到内容正常收尾、不报错；`ResumePrompt` 仍是预留策略，**未接入引擎** | 部分 | **A** |
+| F25 | SSE 中途断连 | `TestChatDisconnectNoPanic`（`DisconnectAt=1`）、`TestEngineResumeAfterDisconnect`、`TestBinaryResumeAfterDisconnect` | 适配器发 `Disconnected`，引擎注入 `ResumePrompt` 并在同回合续写（最多 2 次），超限明确失败 | 是 | **A** |
 | F26 | 无证据申请 `done` | `TestEngineNoEvidenceDenied`、`TestGateSixCases`、`TestBinaryDeniedExit`(exit 4) | `HB-GATE-002`：按 `gate_deny` 的 Missing/Reason 补证据 | 是 | **A** |
 | F27 | 证据链被篡改 | `TestVerifyChainDetectsEvidenceTamper`、`hb verify`(exit 5) | "证据记录被改动过，校验没通过。用 `hb verify` 查看详情。" | 是 | **A** |
 | F28 | 工具失败 / 验证失败后想完成 | `TestFailedToolCannotReachDone`、`TestFailedVerifyCannotReachDone` | Gate 拒绝完成，先修失败项 | 是 | **A** |
@@ -108,8 +108,10 @@
 | G6 ✅ | `list_dir` 路径不存在静默空 | `ListDirTool.Run` 先做 `sb.Rel` + `os.Stat` + `IsDir` 校验并返回可执行提示 | `TestListDirMissingPath` |
 | G7 ✅ | F05/F25 无测试 | F05 稀疏文件断言读取前拒绝；F25 用 `DisconnectAt=1` 断言断流不崩不报错 | `TestReadFileTooLarge`, `TestChatDisconnectNoPanic` |
 
-**剩余未决（非代码缺口）**：
-- `llm.ResumePrompt`（"从截断处继续"）仍是预留策略，未接入引擎；当前断流按已收到内容收尾（F25）。若要实现自动续写，需新增断流检测信号并改动三个适配器，属新功能，不在本次修复范围。
+**后续增强（已部分完成）**：
+- ✅ `llm.ResumePrompt` 已接入：三个适配器在缺少结束标志时发 `Disconnected`，引擎同回合续写，最多 2 次（F25）。
+- ✅ 会话级续跑第一版：`hb resume --last` 检测强杀/超时/网络/失败会话，注入原始任务与已完成工具，最多 2 次；用户中断不恢复（详见 `docs/commands.md`）。
+- ⏳ 自动续跑（无需用户执行命令）尚未默认开启；按业界经验应先 opt-in，跑稳后再考虑。
 - **G8 真实环境类 M 项**：磁盘满/只读/权限/断网/百万文件/10 分钟/50 万字，按第 5 节在真实机器执行并记录，不能伪造通过。
 
 ## 5. 需实测项目的可复现步骤（带 Go 的机器上执行）

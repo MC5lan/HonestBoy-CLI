@@ -116,6 +116,9 @@ func (b *block) RenderWith(r *render.Renderer, width int, th theme.Theme, verbos
 		out = th.DangerStyle().Render("✗ Gate 拒绝 [" + b.meta["rule"] + "] " + b.content)
 	case blkGateAllow:
 		out = th.SuccessStyle().Render("✓ Gate 通过")
+		if strings.TrimSpace(b.content) != "" {
+			out += "：" + b.content
+		}
 	case blkTurnEnd:
 		out = th.DimStyle().Render("— " + b.content)
 	}

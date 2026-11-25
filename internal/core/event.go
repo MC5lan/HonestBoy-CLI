@@ -38,6 +38,9 @@ type Event struct {
 type TurnStartData struct {
 	Input string
 	Model string
+	// Resumed 标记这一回合是续跑；ResumeAttempt 从 1 开始，0 表示新任务。
+	Resumed       bool
+	ResumeAttempt int
 }
 type TextDeltaData struct {
 	Text  string
@@ -61,12 +64,15 @@ type NoticeData struct{ Level, Text string }
 type GateAllowData struct {
 	ClaimID     string
 	EvidenceIDs []string
+	// Claim 是模型申请完成时的摘要，供 CLI/TUI 展示给用户。
+	Claim string
 }
 type GateDenyData struct {
 	ClaimID string
 	Missing []string
 	Rule    string
 	Reason  string
+	Claim   string
 }
 type AbstainData struct {
 	Reason  string
@@ -78,6 +84,12 @@ type TurnEndData struct {
 	DurationMS          int64
 	TokensIn, TokensOut int
 	ReceiptID           string
+	// Summary 是本回合的最终摘要（request_done.summary / 弃权原因）。
+	Summary string
+	// Resumable 表示该回合因可恢复原因中断；ResumeReason 取值
+	// crash | timeout | failed | network | truncated | user_abort。
+	Resumable    bool
+	ResumeReason string
 }
 
 // DiffReviewData 是一次自动提交的 diff 审阅信息。

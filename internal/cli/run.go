@@ -38,6 +38,10 @@ func RunRun(opts GlobalOptions, args []string) error {
 		return err
 	}
 	if prompt == "" {
+		// 没有新任务时，--auto-resume 接管最近一条未完成会话。
+		if opts.AutoResume {
+			return resumeLatest(opts, cfg, workdir, "")
+		}
 		return ErrUsage
 	}
 	if opts.Diff {
@@ -46,7 +50,11 @@ func RunRun(opts GlobalOptions, args []string) error {
 			return err
 		}
 	}
+	return runOnce(opts, cfg, workdir, prompt, "", 0)
+}
 
+// runOnce 装配并运行一个回合；resumeID 非空时续接已有会话。
+func runOnce(opts GlobalOptions, cfg store.Config, workdir, prompt, resumeID string, resumeAttempt int) error {
 	baseURL := firstNonEmpty(opts.BaseURL, cfg.BaseURL)
 	protocol := firstNonEmpty(opts.Protocol, cfg.Protocol)
 	apiKey := os.Getenv(firstNonEmpty(cfg.APIKeyEnv, "HB_API_KEY"))
@@ -91,7 +99,9 @@ func RunRun(opts GlobalOptions, args []string) error {
 		Rigor:           cfg.Rigor,
 		MaxOutputTokens: cfg.MaxOutputTokens,
 		SelfAssessment:  true, AmbiguityHalt: true, LedgerRecall: true, PlanFirst: true,
-		Tracer: core.NewTracer(filepath.Join(store.DefaultPaths().Root, "trace")),
+		Tracer:        core.NewTracer(filepath.Join(store.DefaultPaths().Root, "trace")),
+		ResumeID:      resumeID,
+		ResumeAttempt: resumeAttempt,
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), parseTimeout(opts.Timeout, cfg.Timeout))
 	defer cancel()
@@ -100,8 +110,15 @@ func RunRun(opts GlobalOptions, args []string) error {
 	events, errs := eng.Run(ctx, prompt)
 	terminal := core.TermFailed
 	seenTurnEnd := false
+	resumable := false
+	resumeReason := ""
+	sessionID := ""
 	var profile core.ProfileData
+	human := NewHumanWriter(os.Stdout)
 	for ev := range events {
+		if ev.SessionID != "" {
+			sessionID = ev.SessionID
+		}
 		if ev.Type == core.EvtProfile {
 			if d, ok := ev.Data.(core.ProfileData); ok {
 				profile = d
@@ -112,23 +129,26 @@ func RunRun(opts GlobalOptions, args []string) error {
 				return err
 			}
 		} else if !opts.Quiet {
-			if err := WriteHumanEvent(os.Stdout, ev); err != nil {
+			if err := human.WriteEvent(ev); err != nil {
 				return err
 			}
 		}
 		if ev.Type == core.EvtTurnEnd {
 			if d, ok := ev.Data.(core.TurnEndData); ok {
 				terminal, seenTurnEnd = core.Terminal(d.Terminal), true
+				resumable, resumeReason = d.Resumable, d.ResumeReason
 			}
 		}
 	}
 	if err := <-errs; err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			resumeHint(sessionID, resumable, resumeReason, resumeAttempt)
 			return ErrInterrupted
 		}
 		if opts.Debug {
 			fmt.Fprintln(os.Stderr, "hb:", err)
 		}
+		resumeHint(sessionID, resumable, resumeReason, resumeAttempt)
 		// 保留底层原因（如 *llm.RetryableError），FriendlyError 才能给出可执行建议。
 		return fmt.Errorf("%w: %w", ErrEnvironment, err)
 	}
@@ -142,7 +162,22 @@ func RunRun(opts GlobalOptions, args []string) error {
 	if terminal == core.TermDone {
 		return nil
 	}
+	resumeHint(sessionID, resumable, resumeReason, resumeAttempt)
 	return &TerminalError{Terminal: terminal}
+}
+
+// resumeHint 在可恢复失败后打印续跑命令；用户主动中断不提示。
+// attempt 是当前回合的续跑序号（新任务为 0）；超过上限时只提示人工检查。
+func resumeHint(sessionID string, resumable bool, reason string, attempt int) {
+	if !resumable || sessionID == "" {
+		return
+	}
+	if attempt+1 > engine.MaxResumeAttempts {
+		fmt.Fprintf(os.Stderr, "\n提示：会话 %s 已续跑 %d 次仍未完成；请人工检查（hb sessions show %s）\n",
+			sessionID, attempt, sessionID)
+		return
+	}
+	fmt.Fprintf(os.Stderr, "\n提示：本回合可续跑（原因：%s）。恢复命令：hb resume --last\n", reason)
 }
 
 // readPrompt 拼合命令行参数与管道输入。

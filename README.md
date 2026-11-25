@@ -30,7 +30,7 @@
 | **证据门禁** | `done` 必须由本次真实运行、通过、可接地的 `build` / `test` / `vet` 证据支撑 |
 | **可审计** | 证据带原文哈希，Receipt 串成哈希链；`hb verify` 定位篡改 |
 | **真工具** | 读/写/精确编辑、`apply_patch`、搜索、shell、构建/测试/静态检查 |
-| **长任务** | 上下文压缩、仓库地图、每轮检查点、`hb rewind` 代码回退；SSE 断流自动续写 |
+| **长任务** | 上下文压缩、仓库地图、每轮检查点、`hb rewind` 代码回退；SSE 断流自动续写、`hb resume --last` 会话级续跑 |
 | **工作流** | 计划模式 + `hb approve`、`--auto-commit`、`hb undo` / `hb diff` |
 | **质量契约** | 常开；要求完整实现、边界/安全、最小 diff，并检查 TODO/FIXME/占位符 |
 | **TUI** | 简洁标题栏、可滚动对话、右侧可观测面板、`/` 命令面板、`?` 帮助页 |
@@ -67,10 +67,11 @@ hb                                 # TUI（需要 TTY）
 | 命令 | 说明 |
 |---|---|
 | `hb` / `hb chat` | 启动 TUI（需要 TTY） |
-| `hb run <prompt>` | 单次执行；`--plan` 先出计划，`--diff` 注入工作区 diff，`--profile` 输出耗时，`--auto-commit` 自动提交 |
+| `hb run <prompt>` | 单次执行；`--plan` 先出计划，`--diff` 注入工作区 diff，`--profile` 输出耗时，`--auto-commit` 自动提交，`--auto-resume` 无任务时续跑未完成会话 |
 | `hb probe` | 三态探针，离线验证 Gate |
 | `hb verify` / `hb stats` | 校验证据链 / 诚实度统计 |
 | `hb sessions` / `hb resume <id>` | 会话列表 / 恢复 |
+| `hb resume --last` | 续跑当前工作区最近一条未完成会话（崩溃/超时/网络中断），已完成的工具不重放 |
 | `hb approve <id>` | 批准计划并执行 |
 | `hb init` / `hb doctor` / `hb config` | 初始化 / 环境自检 / 配置 |
 | `hb upgrade` / `hb gc` / `hb export` | 自更新 / 清理 / 脱敏导出 |

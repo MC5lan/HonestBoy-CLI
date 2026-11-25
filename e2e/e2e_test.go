@@ -15,8 +15,11 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/MC5lan/HonestBoy-CLI/internal/core"
 	"github.com/MC5lan/HonestBoy-CLI/internal/llm/testserver"
+	"github.com/MC5lan/HonestBoy-CLI/internal/store"
 )
 
 func skipUnlessE2E(t *testing.T) {
@@ -144,10 +147,12 @@ func TestBinaryRunHappyPath(t *testing.T) {
 	srv := testserver.New(t, testserver.Script{Responses: [][]string{
 		{
 			chatDelta("[SELF]\nconf: high\nmissing: none\nassumption: none\n"),
+			chatDelta("先执行 echo 看看。\n"),
 			chatTool(0, "call_1", "shell", `{"command":"echo e2e-ok"}`),
 		},
 		{
 			chatDelta("[SELF]\nconf: high\nmissing: none\nassumption: none\n"),
+			chatDelta("echo 已经通过。\n"),
 			chatTool(0, "call_2", "request_done", `{"summary":"已执行 echo"}`),
 		},
 	}})
@@ -167,11 +172,18 @@ func TestBinaryRunHappyPath(t *testing.T) {
 		t.Fatalf("hb run failed: %v\n%s", err, out)
 	}
 	text := string(out)
+	t.Logf("CLI 输出:\n%s", text)
 	if !strings.Contains(text, "e2e-ok") {
 		t.Fatalf("tool output missing from CLI output:\n%s", text)
 	}
-	if !strings.Contains(text, "done") && !strings.Contains(text, "完成") {
-		t.Fatalf("terminal not reported:\n%s", text)
+	// 正常正文要可见；框架控制块不能污染输出；最终 summary 要显示。
+	for _, want := range []string{"先执行 echo 看看。", "echo 已经通过。", "已执行 echo", "完成"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("human output missing %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "[SELF]") || strings.Contains(text, "conf: high") {
+		t.Fatalf("control block leaked into CLI output:\n%s", text)
 	}
 	if n := srv.RequestCount(); n != 2 {
 		t.Fatalf("model requests = %d, want 2", n)
@@ -297,6 +309,179 @@ func TestBinaryUntestedExit(t *testing.T) {
 	text := string(out)
 	if !strings.Contains(text, "untested") && !strings.Contains(text, "未验证") {
 		t.Fatalf("untested terminal not reported:\n%s", text)
+	}
+}
+
+// seedCrashSession 在隔离的 LOCALAPPDATA 下写一条"进程被杀"的会话。
+func seedCrashSession(t *testing.T, home, work, id string, resumed int) store.Paths {
+	t.Helper()
+	paths := store.Paths{
+		Root:     filepath.Join(home, "HB"),
+		Sessions: filepath.Join(home, "HB", "sessions"),
+		Logs:     filepath.Join(home, "HB", "logs"),
+	}
+	ss := store.NewSessionStore(paths)
+	sess := core.Session{ID: id, Cwd: work, CreatedAt: time.Now().UTC()}
+	if err := ss.Create(sess); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < resumed; i++ {
+		if err := ss.AppendEvent(sess.Emit(core.EvtTurnStart, core.TurnStartData{
+			Input: "继续上次任务", Resumed: true, ResumeAttempt: i + 1,
+		})); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := ss.AppendEvent(sess.Emit(core.EvtTurnStart, core.TurnStartData{Input: "修复 Add 函数"})); err != nil {
+		t.Fatal(err)
+	}
+	if err := ss.AppendEvent(sess.Emit(core.EvtToolRequest, core.ToolRequestData{
+		CallID: "c1", Tool: "read_file", Args: `{"path":"a.go"}`,
+	})); err != nil {
+		t.Fatal(err)
+	}
+	if err := ss.AppendEvent(sess.Emit(core.EvtToolEnd, core.ToolEndData{
+		CallID: "c1", OK: true, Output: "package main",
+	})); err != nil {
+		t.Fatal(err)
+	}
+	if err := ss.Unlock(); err != nil {
+		t.Fatal(err)
+	}
+	return paths
+}
+
+// hb resume --last：检测强杀会话、注入原始任务与已完成工具，并记录续跑次数。
+func TestBinaryResumeLast(t *testing.T) {
+	skipUnlessE2E(t)
+	root := moduleRoot(t)
+	bin := buildBinary(t, root)
+	srv := testserver.New(t, testserver.Script{Responses: [][]string{
+		{chatDelta("继续完成")},
+	}})
+	home := t.TempDir()
+	writeConfig(t, home, srv.URL)
+	work := t.TempDir()
+	paths := seedCrashSession(t, home, work, "s_crash", 0)
+
+	cmd := exec.Command(bin, "resume", "--last", "--cwd", work)
+	cmd.Env = append(isolatedEnv(t, root), "LOCALAPPDATA="+home)
+	out, err := cmd.CombinedOutput()
+	// 纯文本结果：untested（退出 3）是合法终态。
+	if err != nil && exitCode(err) != 3 {
+		t.Fatalf("resume failed: %v\n%s", err, out)
+	}
+	if n := srv.RequestCount(); n != 1 {
+		t.Fatalf("model requests = %d, want 1", n)
+	}
+	req := srv.LastRequest()
+	if req == nil {
+		t.Fatal("no model request captured")
+	}
+	raw, _ := json.Marshal(req["messages"])
+	text := string(raw)
+	for _, want := range []string{
+		"原始任务", "修复 Add 函数", "read_file", "已完成", "不要重复执行", "进程异常退出",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("resume request missing %q:\n%s", want, text)
+		}
+	}
+
+	reloaded, err := store.NewSessionStore(paths).Load("s_crash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, ev := range reloaded.Events {
+		if d, ok := ev.Data.(core.TurnStartData); ok && d.Resumed && d.ResumeAttempt == 1 {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("resume attempt was not recorded in the session")
+	}
+}
+
+// 已续跑 2 次仍未完成时拒绝第 3 次，要求人工检查。
+func TestBinaryResumeLastLimit(t *testing.T) {
+	skipUnlessE2E(t)
+	root := moduleRoot(t)
+	bin := buildBinary(t, root)
+	home := t.TempDir()
+	writeConfig(t, home, "http://127.0.0.1:9")
+	work := t.TempDir()
+	seedCrashSession(t, home, work, "s_exhausted", 2)
+
+	cmd := exec.Command(bin, "resume", "--last", "--cwd", work)
+	cmd.Env = append(isolatedEnv(t, root), "LOCALAPPDATA="+home)
+	out, err := cmd.CombinedOutput()
+	if err == nil || exitCode(err) != 6 {
+		t.Fatalf("exit = %v, want 6:\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "已续跑 2 次") {
+		t.Fatalf("missing resume limit message:\n%s", out)
+	}
+}
+
+// hb run --auto-resume：没有新任务时自动接管最近一条未完成会话。
+func TestBinaryAutoResume(t *testing.T) {
+	skipUnlessE2E(t)
+	root := moduleRoot(t)
+	bin := buildBinary(t, root)
+	srv := testserver.New(t, testserver.Script{Responses: [][]string{
+		{chatDelta("自动续跑中")},
+	}})
+	home := t.TempDir()
+	writeConfig(t, home, srv.URL)
+	work := t.TempDir()
+	paths := seedCrashSession(t, home, work, "s_auto", 0)
+
+	cmd := exec.Command(bin, "run", "--auto-resume", "--cwd", work)
+	cmd.Env = append(isolatedEnv(t, root), "LOCALAPPDATA="+home)
+	out, err := cmd.CombinedOutput()
+	if err != nil && exitCode(err) != 3 {
+		t.Fatalf("auto resume failed: %v\n%s", err, out)
+	}
+	if n := srv.RequestCount(); n != 1 {
+		t.Fatalf("model requests = %d, want 1", n)
+	}
+	raw, _ := json.Marshal(srv.LastRequest()["messages"])
+	if !strings.Contains(string(raw), "修复 Add 函数") {
+		t.Fatalf("auto resume did not carry the original task:\n%s", raw)
+	}
+	reloaded, err := store.NewSessionStore(paths).Load("s_auto")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, ev := range reloaded.Events {
+		if d, ok := ev.Data.(core.TurnStartData); ok && d.Resumed && d.ResumeAttempt == 1 {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("auto resume attempt was not recorded")
+	}
+}
+
+// 没有未完成会话时，--auto-resume 必须给出明确提示，而不是假装成功。
+func TestBinaryAutoResumeNone(t *testing.T) {
+	skipUnlessE2E(t)
+	root := moduleRoot(t)
+	bin := buildBinary(t, root)
+	home := t.TempDir()
+	writeConfig(t, home, "http://127.0.0.1:9")
+	work := t.TempDir()
+
+	cmd := exec.Command(bin, "run", "--auto-resume", "--cwd", work)
+	cmd.Env = append(isolatedEnv(t, root), "LOCALAPPDATA="+home)
+	out, err := cmd.CombinedOutput()
+	if err == nil || exitCode(err) != 6 {
+		t.Fatalf("exit = %v, want 6:\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "没有可恢复的会话") {
+		t.Fatalf("missing no-resumable message:\n%s", out)
 	}
 }
 

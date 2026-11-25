@@ -367,6 +367,7 @@ func (m *Model) applyEvent(ev core.Event) {
 	case core.EvtTurnStart:
 		// 回放时每个 turn_start 都重置“本轮”，最终只保留最后一个回合的统计。
 		m.resetTurnStats()
+		m.textFilter.Reset()
 		if d, ok := ev.Data.(core.TurnStartData); ok {
 			n := len(m.blocks)
 			if n == 0 || m.blocks[n-1].kind != blkUser || m.blocks[n-1].content != d.Input {
@@ -379,20 +380,32 @@ func (m *Model) applyEvent(ev core.Event) {
 		if !ok || d.Text == "" {
 			return
 		}
+		visible := m.textFilter.Write(d.Text)
+		if visible == "" {
+			return
+		}
 		idx := len(m.blocks) - 1
 		if idx < 0 || m.blocks[idx].kind != blkAssistant {
 			m.blocks = append(m.blocks, block{kind: blkAssistant, dirty: true})
 			idx = len(m.blocks) - 1
 		}
-		m.blocks[idx].content += d.Text
+		m.blocks[idx].content += visible
 		m.blocks[idx].dirty = true
-		if time.Since(m.lastRender) >= 16*time.Millisecond || strings.Contains(d.Text, "\n") {
+		if time.Since(m.lastRender) >= 16*time.Millisecond || strings.Contains(visible, "\n") {
 			m.lastRender = time.Now()
 			m.refreshView()
 		}
 	case core.EvtToolRequest:
 		d, ok := ev.Data.(core.ToolRequestData)
 		if !ok {
+			return
+		}
+		// request_done / declare_untested 由 GateAllow / Abstain 汇总显示。
+		if core.IsControlTool(d.Tool) {
+			if m.controlCalls == nil {
+				m.controlCalls = make(map[string]bool)
+			}
+			m.controlCalls[d.CallID] = true
 			return
 		}
 		m.blocks = append(m.blocks, block{
@@ -405,6 +418,10 @@ func (m *Model) applyEvent(ev core.Event) {
 	case core.EvtToolEnd:
 		d, ok := ev.Data.(core.ToolEndData)
 		if !ok {
+			return
+		}
+		if m.controlCalls[d.CallID] {
+			delete(m.controlCalls, d.CallID)
 			return
 		}
 		m.state = stStreaming
@@ -447,10 +464,12 @@ func (m *Model) applyEvent(ev core.Event) {
 	case core.EvtGateAllow:
 		m.turnGateAllow++
 		m.sessGateAllow++
+		content := ""
 		if d, ok := ev.Data.(core.GateAllowData); ok {
 			m.turnEvidence += len(d.EvidenceIDs)
+			content = d.Claim
 		}
-		m.blocks = append(m.blocks, block{kind: blkGateAllow, dirty: true})
+		m.blocks = append(m.blocks, block{kind: blkGateAllow, content: content, dirty: true})
 		m.refreshView()
 	case core.EvtGateDeny:
 		d, ok := ev.Data.(core.GateDenyData)
@@ -515,6 +534,15 @@ func (m *Model) applyEvent(ev core.Event) {
 		m.blocks = append(m.blocks, block{kind: blkError, content: d.Message, dirty: true})
 		m.refreshView()
 	case core.EvtTurnEnd:
+		if visible := m.textFilter.Flush(); visible != "" {
+			idx := len(m.blocks) - 1
+			if idx >= 0 && m.blocks[idx].kind == blkAssistant {
+				m.blocks[idx].content += visible
+				m.blocks[idx].dirty = true
+			} else {
+				m.blocks = append(m.blocks, block{kind: blkAssistant, content: visible, dirty: true})
+			}
+		}
 		if d, ok := ev.Data.(core.TurnEndData); ok {
 			m.term = core.Terminal(d.Terminal)
 			m.blocks = append(m.blocks, block{

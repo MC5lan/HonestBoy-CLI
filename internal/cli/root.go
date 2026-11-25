@@ -27,6 +27,8 @@ type GlobalOptions struct {
 	Debug      bool
 	Timeout    string
 	MaxTurns   int
+	// AutoResume 让 `hb run` 在没有新任务时自动续跑最近一条未完成会话。
+	AutoResume bool
 }
 
 // Execute 解析参数并分派命令。无第三方 CLI 依赖。
@@ -99,6 +101,8 @@ func Execute(args []string) error {
 			} else {
 				return ErrUsage
 			}
+		case "--auto-resume":
+			opts.AutoResume = true
 		default:
 			rest = append(rest, args[i])
 		}
@@ -137,8 +141,12 @@ func Execute(args []string) error {
 	case "sessions":
 		return RunSessions(opts, tail)
 	case "resume":
+		// hb resume --last：非交互续跑当前工作区最近一条未完成会话。
+		if len(tail) > 0 && (tail[0] == "--last" || tail[0] == "-c") {
+			return RunResumeLast(opts, tail[1:])
+		}
 		if !hasTTY() {
-			return fmt.Errorf("%w: resume 需要 TTY", ErrEnvironment)
+			return fmt.Errorf("%w: resume <id> 需要 TTY；非交互续跑用 hb resume --last", ErrEnvironment)
 		}
 		if len(tail) < 1 {
 			return ErrUsage

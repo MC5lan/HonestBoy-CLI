@@ -1,5 +1,24 @@
 # 变更记录
 
+## Unreleased
+
+### 会话级续跑
+
+- 新增 `hb resume --last`：检测当前工作区最近一条未完成会话（强杀、超时、网络中断、可重试失败），
+  把原始任务、已完成/失败的工具和上次输出注入上下文后从断点继续；已完成的工具不自动重放。
+- 用户主动 `Ctrl+C`、`untested`、`denied`、`done` 的会话不会被视为可恢复；同一会话最多续跑 2 次。
+- `turn_start` 记录 `Resumed`/`ResumeAttempt`，`turn_end` 记录 `Resumable`/`ResumeReason`；
+  `hb sessions` 显示 `(可恢复:timeout)` / `(未正常退出)`。
+- 可恢复失败后在 stderr 提示 `hb resume --last`，方便系统层面断开后继续。
+- 新增 `hb run --auto-resume`：没有新任务时自动接管最近一条未完成会话，适合开机脚本/定时任务。
+
+### 可读输出
+
+- CLI/TUI 不再把 `[SELF]`、`[TEST PLAN]` 控制块当作正文展示；历史注入与续跑提示也只看正文。
+- `request_done.summary` 现在显示为 `✓ 完成：…`，不再只显示“检查通过”。
+- 系统提示要求模型在 `request_done` 前用 1–3 句话说明做了什么、验证了什么、还有什么没做。
+- 流式正文与工具行之间增加换行，避免正文和“使用工具”粘在同一行。
+
 ## v0.2.0（2026-11-25）
 
 ### 质量契约常开

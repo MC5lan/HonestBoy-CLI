@@ -36,7 +36,11 @@ func (e *Engine) runTurn(ctx context.Context, input, history string) (core.Termi
 	resumeRetries := 0
 	terminal := core.Terminal("")
 
-	e.emit(core.EvtTurnStart, core.TurnStartData{Input: input, Model: e.cfg.Model})
+	e.emit(core.EvtTurnStart, core.TurnStartData{
+		Input: input, Model: e.cfg.Model,
+		// 只有显式续跑（attempt>0）才算 resume；TUI 的多轮续接不算。
+		Resumed: e.cfg.ResumeAttempt > 0, ResumeAttempt: e.cfg.ResumeAttempt,
+	})
 
 	// 回合结束时校验测试计划三态（passed 必须有可接地的证据）。
 	defer func() {
@@ -401,7 +405,10 @@ steps:
 					if e.cfg.Tracer != nil {
 						e.cfg.Tracer.RecordClaim(a.Summary, "verify", true)
 					}
-					e.emit(core.EvtGateAllow, core.GateAllowData{ClaimID: claim.ID, EvidenceIDs: decision.Evidence})
+					e.finalSummary = a.Summary
+					e.emit(core.EvtGateAllow, core.GateAllowData{
+						ClaimID: claim.ID, EvidenceIDs: decision.Evidence, Claim: a.Summary,
+					})
 					e.writeReceipt(core.TermDone, a.Summary)
 					_ = turn.Transition(core.StClosed)
 					return core.TermDone, nil
@@ -411,6 +418,7 @@ steps:
 				}
 				e.emit(core.EvtGateDeny, core.GateDenyData{
 					ClaimID: claim.ID, Missing: decision.Missing, Rule: decision.Rule, Reason: decision.Reason,
+					Claim: a.Summary,
 				})
 				e.emit(core.EvtNotice, core.NoticeData{Level: "warn", Text: decision.Reason})
 				if remediation < 2 {
@@ -419,6 +427,7 @@ steps:
 					break
 				}
 				terminal = core.TermDenied
+				e.finalSummary = a.Summary
 				e.writeReceipt(core.TermDenied, a.Summary)
 				_ = turn.Transition(core.StClosed)
 				stop = true
@@ -434,6 +443,7 @@ steps:
 					}
 				}
 				e.emit(core.EvtAbstain, a.ToAbstainData())
+				e.finalSummary = a.Reason
 				e.writeReceipt(core.TermUntest, a.Reason)
 				_ = turn.Transition(core.StClosed)
 				terminal = core.TermUntest

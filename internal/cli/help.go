@@ -10,11 +10,12 @@ import (
 func PrintHelpTopic(w io.Writer, topic string) bool {
 	topics := map[string]string{
 		"run": `hb run 用法
-  hb run [--diff] [--profile] [--plan] [--auto-commit] <prompt>
-  --diff      注入当前 git diff
-  --profile   输出上下文/流式/首 token/工具耗时
-  --plan      只读计划模式，结束后 hb approve <session-id>
-  --yes       自动批准普通写/执行（高危永不放行）`,
+  hb run [--diff] [--profile] [--plan] [--auto-commit] [--auto-resume] <prompt>
+  --diff          注入当前 git diff
+  --profile       输出上下文/流式/首 token/工具耗时
+  --plan          只读计划模式，结束后 hb approve <session-id>
+  --yes           自动批准普通写/执行（高危永不放行）
+  --auto-resume   没有新任务时续跑最近一条未完成会话`,
 		"config": `hb config 用法
   hb config list
   hb config get <key>
@@ -56,7 +57,8 @@ func PrintHelp(w io.Writer) {
   hb run <prompt>       单次执行（非交互）
   hb chat               显式交互
   hb sessions           列出/查看/删除会话
-  hb resume <id>        恢复会话
+  hb resume <id>        恢复会话（TUI）
+  hb resume --last      续跑当前工作区最近一条未完成会话（最多 2 次）
   hb verify             校验证据链
   hb stats              诚实度统计
   hb probe              三态探针

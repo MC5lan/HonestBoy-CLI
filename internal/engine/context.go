@@ -40,7 +40,8 @@ func historyText(s *core.Session, maxRunes int) string {
 		text := strings.TrimSpace(assistant.String())
 		assistant.Reset()
 		if text != "" {
-			fmt.Fprintf(&b, "助手: %s\n", truncateRunes(text, 2000))
+			// 只把用户能读到的正文写进历史，控制块（[SELF]/[TEST PLAN]）不注入。
+			fmt.Fprintf(&b, "助手: %s\n", truncateRunes(core.VisibleText(text), 2000))
 		}
 	}
 	for _, ev := range s.Events {

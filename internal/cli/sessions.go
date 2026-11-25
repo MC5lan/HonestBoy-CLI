@@ -88,7 +88,12 @@ func RunSessions(opts GlobalOptions, args []string) error {
 	fmt.Fprintf(os.Stdout, "%-22s %-20s %-14s %-10s %s\n", "ID", "时间", "终态", "cwd", "首条输入")
 	for _, m := range metas {
 		term := displayTerminal(m.Terminal)
-		if m.Terminal == "" && !m.Ended {
+		switch {
+		case m.Resumable && m.ResumeReason == "crash":
+			term = "(未正常退出)"
+		case m.Resumable:
+			term = "(可恢复:" + m.ResumeReason + ")"
+		case m.Terminal == "" && !m.Ended:
 			term = "(未正常退出)"
 		}
 		fmt.Fprintf(os.Stdout, "%-22s %-20s %-14s %-10s %s\n",

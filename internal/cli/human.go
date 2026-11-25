@@ -13,8 +13,59 @@ import (
 
 var jsonErrorRe = regexp.MustCompile(`\{"error"\s*:.*`)
 
-// WriteHumanEvent 输出人类可读事件：技术术语翻译成中文，原始 JSON 错误转成可执行建议。
+// HumanWriter 在整条事件流上过滤 [SELF]/[TEST PLAN] 控制块，只展示正文。
+type HumanWriter struct {
+	w       io.Writer
+	filter  core.VisibleTextFilter
+	control map[string]bool // request_done / declare_untested 的 CallID
+}
+
+func NewHumanWriter(w io.Writer) *HumanWriter {
+	return &HumanWriter{w: w, control: make(map[string]bool)}
+}
+
+// WriteEvent 输出一条事件；文本增量先经过可见性过滤。
+func (h *HumanWriter) WriteEvent(e core.Event) error {
+	switch e.Type {
+	case core.EvtTurnStart:
+		h.filter.Reset()
+	case core.EvtTextDelta:
+		d, ok := e.Data.(core.TextDeltaData)
+		if !ok {
+			return nil
+		}
+		vis := h.filter.Write(d.Text)
+		if vis == "" {
+			return nil
+		}
+		_, err := io.WriteString(h.w, vis)
+		return err
+	case core.EvtToolRequest:
+		if d, ok := e.Data.(core.ToolRequestData); ok && core.IsControlTool(d.Tool) {
+			h.control[d.CallID] = true
+			return nil
+		}
+	case core.EvtToolEnd:
+		if d, ok := e.Data.(core.ToolEndData); ok && h.control[d.CallID] {
+			delete(h.control, d.CallID)
+			return nil
+		}
+	case core.EvtTurnEnd:
+		if vis := h.filter.Flush(); vis != "" {
+			if _, err := io.WriteString(h.w, vis); err != nil {
+				return err
+			}
+		}
+	}
+	return writeHumanEvent(h.w, e)
+}
+
+// WriteHumanEvent 输出单条人类可读事件（不做跨事件文本过滤）。
 func WriteHumanEvent(w io.Writer, e core.Event) error {
+	return writeHumanEvent(w, e)
+}
+
+func writeHumanEvent(w io.Writer, e core.Event) error {
 	switch e.Type {
 	case core.EvtTurnStart:
 		if d, ok := e.Data.(core.TurnStartData); ok {
@@ -31,7 +82,11 @@ func WriteHumanEvent(w io.Writer, e core.Event) error {
 		}
 	case core.EvtToolRequest:
 		if d, ok := e.Data.(core.ToolRequestData); ok {
-			return writeLine(w, "  · 使用工具 %s", friendlyTool(d.Tool))
+			if core.IsControlTool(d.Tool) {
+				return nil
+			}
+			// 前面可能刚输出过流式正文，先换行再显示工具行。
+			return writeLine(w, "\n  · 使用工具 %s", friendlyTool(d.Tool))
 		}
 	case core.EvtToolStart:
 		// 不单独输出，避免刷屏。
@@ -49,22 +104,25 @@ func WriteHumanEvent(w io.Writer, e core.Event) error {
 			return writeLine(w, "    ⊘ 已跳过（需批准）: %s", d.Reason)
 		}
 	case core.EvtGateAllow:
-		return writeLine(w, "✓ 检查通过，任务完成")
+		if d, ok := e.Data.(core.GateAllowData); ok && strings.TrimSpace(d.Claim) != "" {
+			return writeLine(w, "\n✓ 完成：%s", oneLine(d.Claim, 200))
+		}
+		return writeLine(w, "\n✓ 检查通过，任务完成")
 	case core.EvtGateDeny:
 		if d, ok := e.Data.(core.GateDenyData); ok {
-			return writeLine(w, "✗ 还不能算完成: %s", friendlyGate(d.Rule, d.Reason))
+			return writeLine(w, "\n✗ 还不能算完成: %s", friendlyGate(d.Rule, d.Reason))
 		}
 	case core.EvtAbstain:
 		if d, ok := e.Data.(core.AbstainData); ok {
-			return writeLine(w, "⏸ 已弃权: %s（%d 项未验证）", d.Reason, len(d.NotDone))
+			return writeLine(w, "\n⏸ 已弃权: %s（%d 项未验证）", d.Reason, len(d.NotDone))
 		}
 	case core.EvtNotice:
 		if d, ok := e.Data.(core.NoticeData); ok {
-			return writeLine(w, "  ℹ %s", d.Text)
+			return writeLine(w, "\n  ℹ %s", d.Text)
 		}
 	case core.EvtError:
 		if d, ok := e.Data.(core.ErrorData); ok {
-			return writeLine(w, "✗ 出错: %s", friendlyError(d.Message))
+			return writeLine(w, "\n✗ 出错: %s", friendlyError(d.Message))
 		}
 	case core.EvtTurnEnd:
 		if d, ok := e.Data.(core.TurnEndData); ok {

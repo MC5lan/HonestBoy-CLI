@@ -80,6 +80,8 @@ type Model struct {
 	state         state
 
 	blocks       []block
+	textFilter   core.VisibleTextFilter
+	controlCalls map[string]bool
 	view         viewport.Model
 	follow       bool
 	newBelow     bool

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,6 +25,7 @@ var sessionMaxBytes int64 = 50 << 20
 var (
 	ErrSessionNotFound = errors.New("session not found")
 	ErrSessionLocked   = errors.New("session is locked by another process")
+	ErrNoResumable     = errors.New("no resumable session in this workspace")
 	// errTruncatedTail 只用于标记 jsonl 尾行被截断（强杀/写一半），由 Load 决定是否跳过。
 	errTruncatedTail = errors.New("truncated jsonl tail")
 )
@@ -40,13 +42,16 @@ type jsonlLine struct {
 
 // SessionMeta 是列表视图需要的精简信息，不解析整份文件。
 type SessionMeta struct {
-	ID           string
-	Cwd          string
-	InputSummary string
-	Terminal     string
-	Ended        bool // 是否写入 session_end；false 表示强杀/崩溃
-	CreatedAt    time.Time
-	ModifiedAt   time.Time
+	ID             string
+	Cwd            string
+	InputSummary   string
+	Terminal       string
+	Ended          bool // 是否写入 session_end；false 表示强杀/崩溃
+	Resumable      bool
+	ResumeReason   string // crash | timeout | failed | network | truncated | user_abort
+	ResumeAttempts int
+	CreatedAt      time.Time
+	ModifiedAt     time.Time
 }
 
 // SessionStore 以 O_APPEND 逐行写入会话，写完 Sync。
@@ -311,6 +316,9 @@ func (s *SessionStore) List() ([]SessionMeta, error) {
 		}
 		id := strings.TrimSuffix(entry.Name(), ".jsonl")
 		meta := SessionMeta{ID: id}
+		lastTurnTerminal := ""
+		hasTurnStart := false
+		pendingTurn := false
 		for _, path := range s.parts(id) {
 			if info, err := os.Stat(path); err == nil && info.ModTime().After(meta.ModifiedAt) {
 				meta.ModifiedAt = info.ModTime()
@@ -330,18 +338,38 @@ func (s *SessionStore) List() ([]SessionMeta, error) {
 					meta.Cwd, meta.CreatedAt = w.Cwd, w.CreatedAt
 				case "event":
 					var ev struct {
-						Type core.EventType `json:"type"`
-						Data struct {
-							Input string `json:"input"`
-						} `json:"data"`
+						Type core.EventType  `json:"type"`
+						Data json.RawMessage `json:"data"`
 					}
-					if json.Unmarshal(w.Event, &ev) == nil {
-						if ev.Type == core.EvtTurnStart && meta.InputSummary == "" {
-							meta.InputSummary = truncateRunes(ev.Data.Input, 40)
+					if json.Unmarshal(w.Event, &ev) != nil {
+						continue
+					}
+					switch ev.Type {
+					case core.EvtTurnStart:
+						var d core.TurnStartData
+						if json.Unmarshal(ev.Data, &d) == nil {
+							if meta.InputSummary == "" && d.Input != "" {
+								meta.InputSummary = truncateRunes(d.Input, 40)
+							}
+							if d.Resumed {
+								meta.ResumeAttempts++
+							}
+							hasTurnStart = true
+							pendingTurn = true
 						}
-						if ev.Type == core.EvtSessionEnd {
-							meta.Ended = true
+					case core.EvtTurnEnd:
+						var d core.TurnEndData
+						if json.Unmarshal(ev.Data, &d) == nil {
+							if d.Terminal != "" {
+								meta.Terminal = d.Terminal
+								lastTurnTerminal = d.Terminal
+							}
+							meta.Resumable = d.Resumable
+							meta.ResumeReason = d.ResumeReason
+							pendingTurn = false
 						}
+					case core.EvtSessionEnd:
+						meta.Ended = true
 					}
 				case "receipt":
 					var r struct {
@@ -354,10 +382,55 @@ func (s *SessionStore) List() ([]SessionMeta, error) {
 			}
 			f.Close()
 		}
+		// 有 turn_start 但没有 turn_end：进程在回合中途被强杀。
+		// 只看最后一个 turn_end，避免旧 receipt/旧回合掩盖后续中断。
+		if !meta.Ended && hasTurnStart && pendingTurn {
+			meta.Resumable = true
+			meta.ResumeReason = "crash"
+		} else {
+			switch core.Terminal(lastTurnTerminal) {
+			case core.TermDone, core.TermUntest, core.TermDenied:
+				meta.Resumable = false
+				meta.ResumeReason = ""
+			}
+		}
+		if meta.Resumable && meta.ResumeReason == "" {
+			meta.ResumeReason = "failed"
+		}
 		out = append(out, meta)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ModifiedAt.After(out[j].ModifiedAt) })
 	return out, nil
+}
+
+// LatestResumable 返回当前工作区最近一条可恢复会话。
+func (s *SessionStore) LatestResumable(workdir string) (SessionMeta, error) {
+	metas, err := s.List()
+	if err != nil {
+		return SessionMeta{}, err
+	}
+	for _, m := range metas {
+		if m.Resumable && sameDir(m.Cwd, workdir) {
+			return m, nil
+		}
+	}
+	return SessionMeta{}, ErrNoResumable
+}
+
+// sameDir 比较两个工作区路径；Windows 下忽略大小写。
+func sameDir(a, b string) bool {
+	if a == "" || b == "" {
+		return false
+	}
+	aa, err1 := filepath.Abs(a)
+	bb, err2 := filepath.Abs(b)
+	if err1 != nil || err2 != nil {
+		return filepath.Clean(a) == filepath.Clean(b)
+	}
+	if runtime.GOOS == "windows" {
+		return strings.EqualFold(filepath.Clean(aa), filepath.Clean(bb))
+	}
+	return filepath.Clean(aa) == filepath.Clean(bb)
 }
 
 // Delete 删除一个会话的全部分片及其检查点目录。

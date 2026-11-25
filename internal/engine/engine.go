@@ -47,6 +47,8 @@ type Config struct {
 	Tracer *core.Tracer
 	// ResumeID 非空时续接已有会话（事件与证据链追加到同一文件）。
 	ResumeID string
+	// ResumeAttempt 是本次续跑的序号（从 1 开始）；0 表示新任务。
+	ResumeAttempt int
 	// HistoryLimit 是注入上一轮历史的 rune 上限；0 用默认 16000。
 	HistoryLimit int
 }
@@ -73,6 +75,7 @@ type Engine struct {
 	hook            *EvidenceHook
 	usage           llm.Usage
 	lastReceipt     string
+	finalSummary    string
 	profile         core.ProfileData
 	registry        *tools.Registry
 	approval        ApprovalPolicy
@@ -173,6 +176,7 @@ func (e *Engine) Run(ctx context.Context, prompt string) (<-chan core.Event, <-c
 		e.out = events
 		e.startTime = time.Now().UTC()
 		e.profile = core.ProfileData{}
+		e.finalSummary = ""
 
 		var s *core.Session
 		if e.cfg.ResumeID != "" {
@@ -205,6 +209,7 @@ func (e *Engine) Run(ctx context.Context, prompt string) (<-chan core.Event, <-c
 		}
 		history := historyText(s, historyLimit)
 		terminal, err := e.runTurn(ctx, prompt, history)
+		resumable, resumeReason := resumeOutcome(terminal, err, ctx)
 		if err != nil {
 			// 错误必须作为事件发出：TUI 只消费事件流，不读 errs channel。
 			e.emit(core.EvtError, core.ErrorData{
@@ -223,6 +228,8 @@ func (e *Engine) Run(ctx context.Context, prompt string) (<-chan core.Event, <-c
 		e.emit(core.EvtTurnEnd, core.TurnEndData{
 			Terminal: string(terminal), DurationMS: time.Since(e.startTime).Milliseconds(),
 			TokensIn: e.usage.In, TokensOut: e.usage.Out, ReceiptID: e.lastReceipt,
+			Summary:   e.finalSummary,
+			Resumable: resumable, ResumeReason: resumeReason,
 		})
 		e.emit(core.EvtSessionEnd, core.SessionEndData{Terminal: string(terminal)})
 	}()
@@ -293,6 +300,9 @@ const systemPrompt = `你是 Honest Boy，一个本地编程智能体。
 3. 无法验证时调用 declare_untested，参数为 {"reason":"...","not_done":["..."],"done":[...],"next":"..."}；reason 与 not_done 必填。这是一个合法的三态出口（done / untested / denied）。
 4. 验证器输出原文由系统原样保留并截断；下游改写不会影响已记录的哈希链。
 5. 同一失败重复三次，回合自动转入 halt。
+6. 在调用 request_done 前，用 1–3 句话向用户说明：做了什么、验证了什么、还有什么没做。
+   summary 是给门禁和审计的短摘要，不能替代这段给人看的说明；也不要只输出 [SELF]/[TEST PLAN]。
+7. 每次调用工具前用一句话说明目的，工具完成后用一句话说明结果或下一步；不要只发工具调用。
 
 工具用法：
 - write_file 必须同时提供 path 与 content；read_file 会记录文件哈希，随后才能 edit_file。

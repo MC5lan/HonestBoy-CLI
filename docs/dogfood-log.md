@@ -86,6 +86,15 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
     （旧二进制备份为 `hb.exe.0.1.0-dev.bak`），`hb probe` 三态通过，`hb upgrade --check` 确认最新；
     winget 0.2.0 清单与 scoop `hb.json` 已回填真实 SHA256。goreleaser 本机下载超时，
     产物用相同 ldflags 手工交叉编译 + zip + checksums 构建。
+44. 会话级续跑第一版：`hb resume --last` 检测当前工作区最近一条未完成会话（强杀/超时/网络/失败），
+    把原始任务、已完成/失败工具和上次输出注入上下文；已完成工具不自动重放；用户 Ctrl+C/untested/denied/done 不恢复；
+    同一会话最多续跑 2 次，`turn_start`/`turn_end` 记录续跑次数与原因，`hb sessions` 显示可恢复标记。
+    新增 store/engine/e2e 测试；全量 `go test ./...` 与 11 条二进制 e2e 通过。
+45. 可读输出修正：用户反馈“基本见不到有用的文字信息”。定位到两个原因：
+    `[SELF]`/`[TEST PLAN]` 控制块被原样当正文打印；`request_done.summary` 只写进 Receipt、CLI 只显示“检查通过”。
+    现在 CLI/TUI 过滤控制块并保留正常正文，历史注入与续跑提示同样只看正文；GateAllow/TurnEnd 携带并显示最终摘要；
+    系统提示要求模型在 request_done 前用 1–3 句话说明做了什么/验证了什么/还有什么没做。
+    另加 `hb run --auto-resume`：无新任务时自动续跑最近未完成会话。
 
 ## 2026-11-23
 

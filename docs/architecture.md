@@ -84,6 +84,8 @@ TUI 采用统一的三段式布局：
 | 输出预算 | `engine.go` | `MaxOutputTokens` 默认 65536（不超过窗口一半）；`finish_reason=length` 且无工具调用按 failed 结束 |
 | 思考模式 | `llm/openai_chat.go` + `engine` | 解析并回传 `reasoning_content`；`reasoning_effort` 可配为 low/high/max |
 | 质量契约（常开） | `core/rigor.go` + `loop.go` | 每次运行追加完整实现/边界/安全/最小 diff 提示；写入后扫描占位符并回传警告，不改变 Gate |
+| 会话级续跑 | `store/session_store.go` + `engine/resume.go` + `cli/resume.go` | 无 `session_end` 或可恢复终态 → `hb resume --last` / `hb run --auto-resume` 重建原始任务/已完成工具/上次输出，最多 2 次；用户中断不恢复 |
+| 可读输出 | `core/visible.go` + `cli/human.go` + `tui/update.go` | 展示时过滤 `[SELF]`/`[TEST PLAN]` 控制块；`request_done.summary` 进入 GateAllow/TurnEnd 并显示为最终摘要 |
 
 开关位于 `engine.Config`：`AmbiguityHalt` / `SelfAssessment` / `PlanFirst` / `LedgerRecall`。
 CLI `hb run` 与 TUI 都默认开启这四项。
