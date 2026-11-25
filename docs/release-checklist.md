@@ -129,3 +129,15 @@ Windows 下旧文件先改名为 `hb.exe.old`，下次启动自动清理。
 - winget 新包 PR 已提交：https://github.com/microsoft/winget-pkgs/pull/488872；
   CLA 已按个人项目签署；校验 01–07（manifest/URL/策略/目录/扫描）通过，
   08 安装验证在 Microsoft 校验队列等待（外部队列，非本地阻塞）。
+
+## 2026-11-25 v0.3.1 发布记录
+
+- 修复：无 TTY 且无配置时 `hb` 不再启动设置向导（会等待 stdin），避免 winget/CI 无参数探测挂起。
+- 发布提交 `28321a7`；tag 与 GitHub Release：https://github.com/MC5lan/HonestBoy-CLI/releases/tag/v0.3.1
+- 三个 zip + `checksums.txt` 已上传：
+  - windows/amd64 `7e30b3d7755da0c68e8abb7e2b88ea8c7286cdb1fd2e4a36c2c58ebdce88f56b`
+  - windows/arm64 `ec65a14d69b5116436b4ebdb519303a4b1ccbd5c35a55cddce3b7583ad161fdc`
+  - linux/amd64 `92ac5f651ebcd6a91116b29c71f406f8730937791f7c131529bcf79831cf5ef7`
+- winget PR #488872 已从 0.3.0 更新到 0.3.1（移除 0.3.0 目录，等待重新校验）。
+- 本机安装 0.3.1（旧 0.3.0 备份为 `hb.exe.0.3.0.bak`）；`hb probe` 通过。
+- 说明：goreleaser 仍未在本机运行；产物用相同 ldflags 手工交叉编译。
