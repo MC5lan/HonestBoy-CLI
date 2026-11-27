@@ -138,6 +138,7 @@ Windows 下旧文件先改名为 `hb.exe.old`，下次启动自动清理。
   - windows/amd64 `7e30b3d7755da0c68e8abb7e2b88ea8c7286cdb1fd2e4a36c2c58ebdce88f56b`
   - windows/arm64 `ec65a14d69b5116436b4ebdb519303a4b1ccbd5c35a55cddce3b7583ad161fdc`
   - linux/amd64 `92ac5f651ebcd6a91116b29c71f406f8730937791f7c131529bcf79831cf5ef7`
-- winget PR #488872 已从 0.3.0 更新到 0.3.1（移除 0.3.0 目录，等待重新校验）。
+- winget 新包 PR #489065（0.3.1）校验通过：`Validation-Completed` / `Azure-Pipeline-Passed`；
+  等待 winget-pkgs moderator 合并。旧 #488872（0.3.0）已关闭。
 - 本机安装 0.3.1（旧 0.3.0 备份为 `hb.exe.0.3.0.bak`）；`hb probe` 通过。
 - 说明：goreleaser 仍未在本机运行；产物用相同 ldflags 手工交叉编译。

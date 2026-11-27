@@ -102,7 +102,9 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
     08 安装验证在 Microsoft 外部队列等待。
 47. winget 安装验证卡住数小时，定位到 `hb` 在“无参数 + 无配置 + 无 TTY”时会启动设置向导并等待 stdin，
     校验器的安装后探测因此挂起。修复为先判断 TTY（无 TTY 直接打印帮助），新增 `TestBinaryNoArgsNonTTY`；
-    发布 v0.3.1，并把 winget PR #488872 从 0.3.0 更新到 0.3.1；本机安装 0.3.1 验证通过。
+    发布 v0.3.1；旧 PR #488872（0.3.0）关闭，新 PR #489065（0.3.1）校验通过
+    （`Validation-Completed` / `Azure-Pipeline-Passed`），等待 winget-pkgs moderator 合并；
+    本机安装 0.3.1 验证通过。
 
 ## 2026-11-23
 
