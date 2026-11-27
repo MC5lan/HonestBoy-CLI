@@ -72,6 +72,7 @@ hb                                 # TUI（需要 TTY）
 | `hb verify` / `hb stats` | 校验证据链 / 诚实度统计 |
 | `hb sessions` / `hb resume <id>` | 会话列表 / 恢复 |
 | `hb resume --last` | 续跑当前工作区最近一条未完成会话（崩溃/超时/网络中断），已完成的工具不重放 |
+| `hb resume <id> --headless` | 非交互续跑指定未完成会话，适合脚本/CI |
 | `hb approve <id>` | 批准计划并执行 |
 | `hb init` / `hb doctor` / `hb config` | 初始化 / 环境自检 / 配置 |
 | `hb upgrade` / `hb gc` / `hb export` | 自更新 / 清理 / 脱敏导出 |

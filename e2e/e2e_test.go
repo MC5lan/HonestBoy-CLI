@@ -403,6 +403,47 @@ func TestBinaryResumeLast(t *testing.T) {
 	}
 }
 
+// hb resume <id> --headless：脚本中续跑指定会话。
+func TestBinaryResumeIDHeadless(t *testing.T) {
+	skipUnlessE2E(t)
+	root := moduleRoot(t)
+	bin := buildBinary(t, root)
+	srv := testserver.New(t, testserver.Script{Responses: [][]string{
+		{chatDelta("指定会话续跑")},
+	}})
+	home := t.TempDir()
+	writeConfig(t, home, srv.URL)
+	work := t.TempDir()
+	paths := seedCrashSession(t, home, work, "s_headless", 0)
+
+	cmd := exec.Command(bin, "resume", "s_headless", "--headless", "--cwd", work)
+	cmd.Env = append(isolatedEnv(t, root), "LOCALAPPDATA="+home)
+	out, err := cmd.CombinedOutput()
+	if err != nil && exitCode(err) != 3 {
+		t.Fatalf("headless resume failed: %v\n%s", err, out)
+	}
+	if n := srv.RequestCount(); n != 1 {
+		t.Fatalf("model requests = %d, want 1", n)
+	}
+	raw, _ := json.Marshal(srv.LastRequest()["messages"])
+	if !strings.Contains(string(raw), "修复 Add 函数") {
+		t.Fatalf("headless resume did not carry original task:\n%s", raw)
+	}
+	reloaded, err := store.NewSessionStore(paths).Load("s_headless")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, ev := range reloaded.Events {
+		if d, ok := ev.Data.(core.TurnStartData); ok && d.Resumed && d.ResumeAttempt == 1 {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("headless resume attempt was not recorded")
+	}
+}
+
 // 已续跑 2 次仍未完成时拒绝第 3 次，要求人工检查。
 func TestBinaryResumeLastLimit(t *testing.T) {
 	skipUnlessE2E(t)

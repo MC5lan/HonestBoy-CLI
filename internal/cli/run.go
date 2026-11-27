@@ -115,31 +115,46 @@ func runOnce(opts GlobalOptions, cfg store.Config, workdir, prompt, resumeID str
 	sessionID := ""
 	var profile core.ProfileData
 	human := NewHumanWriter(os.Stdout)
-	for ev := range events {
-		if ev.SessionID != "" {
-			sessionID = ev.SessionID
-		}
-		if ev.Type == core.EvtProfile {
-			if d, ok := ev.Data.(core.ProfileData); ok {
-				profile = d
+	progress := newProgressLine(os.Stdout, hasTTY() && !opts.JSON && !opts.Quiet)
+	defer progress.clear()
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+eventsLoop:
+	for {
+		select {
+		case ev, ok := <-events:
+			if !ok {
+				break eventsLoop
 			}
-		}
-		if opts.JSON {
-			if err := WriteJSONEvent(os.Stdout, ev); err != nil {
-				return err
+			progress.beforeEvent(ev)
+			if ev.SessionID != "" {
+				sessionID = ev.SessionID
 			}
-		} else if !opts.Quiet {
-			if err := human.WriteEvent(ev); err != nil {
-				return err
+			if ev.Type == core.EvtProfile {
+				if d, ok := ev.Data.(core.ProfileData); ok {
+					profile = d
+				}
 			}
-		}
-		if ev.Type == core.EvtTurnEnd {
-			if d, ok := ev.Data.(core.TurnEndData); ok {
-				terminal, seenTurnEnd = core.Terminal(d.Terminal), true
-				resumable, resumeReason = d.Resumable, d.ResumeReason
+			if opts.JSON {
+				if err := WriteJSONEvent(os.Stdout, ev); err != nil {
+					return err
+				}
+			} else if !opts.Quiet {
+				if err := human.WriteEvent(ev); err != nil {
+					return err
+				}
 			}
+			if ev.Type == core.EvtTurnEnd {
+				if d, ok := ev.Data.(core.TurnEndData); ok {
+					terminal, seenTurnEnd = core.Terminal(d.Terminal), true
+					resumable, resumeReason = d.Resumable, d.ResumeReason
+				}
+			}
+		case <-ticker.C:
+			progress.tick()
 		}
 	}
+	progress.clear()
 	if err := <-errs; err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			resumeHint(sessionID, resumable, resumeReason, resumeAttempt)

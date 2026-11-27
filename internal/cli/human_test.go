@@ -67,6 +67,92 @@ func TestHumanWriterFiltersControlBlocksAndShowsSummary(t *testing.T) {
 	}
 }
 
+func TestHumanWriterReceiptDone(t *testing.T) {
+	var buf bytes.Buffer
+	h := NewHumanWriter(&buf)
+	write := func(e core.Event) { _ = h.WriteEvent(e) }
+	write(core.Event{SessionID: "s1", Type: core.EvtTurnStart, Data: core.TurnStartData{Input: "改 a.go"}})
+	write(core.Event{Type: core.EvtToolRequest, Data: core.ToolRequestData{CallID: "w1", Tool: "write_file", Args: `{"path":"a.go","content":"x"}`}})
+	write(core.Event{Type: core.EvtToolEnd, Data: core.ToolEndData{CallID: "w1", OK: true, Output: "ok"}})
+	write(core.Event{Type: core.EvtToolRequest, Data: core.ToolRequestData{CallID: "v1", Tool: "verify_test", Args: `{}`}})
+	write(core.Event{Type: core.EvtToolEnd, Data: core.ToolEndData{CallID: "v1", OK: true, Output: "PASS"}})
+	write(core.Event{Type: core.EvtGateAllow, Data: core.GateAllowData{Claim: "改完并测试"}})
+	write(core.Event{Type: core.EvtTurnEnd, Data: core.TurnEndData{
+		Terminal: "done", Summary: "改完并测试", DurationMS: 1234, TokensIn: 10, TokensOut: 2,
+	}})
+	out := buf.String()
+	for _, want := range []string{
+		"■ 完成", "摘要: 改完并测试", "改动: a.go", "验证: test ✓", "未验证: —",
+		"下一步:", "hb verify", "hb diff",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("receipt missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestHumanWriterReceiptUntested(t *testing.T) {
+	var buf bytes.Buffer
+	h := NewHumanWriter(&buf)
+	write := func(e core.Event) { _ = h.WriteEvent(e) }
+	write(core.Event{SessionID: "s_bad", Type: core.EvtTurnStart, Data: core.TurnStartData{Input: "随便改"}})
+	write(core.Event{Type: core.EvtAbstain, Data: core.AbstainData{Reason: "没验证", NotDone: []string{"测试", "构建"}}})
+	write(core.Event{Type: core.EvtTurnEnd, Data: core.TurnEndData{
+		Terminal: "untested", Summary: "没验证", Resumable: true, ResumeReason: "failed",
+	}})
+	out := buf.String()
+	for _, want := range []string{
+		"■ 未验证", "未验证: 测试, 构建", "hb resume --last", "hb sessions show s_bad",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("receipt missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestApplyPatchPaths(t *testing.T) {
+	args := `{"patch":"*** Begin Patch\n*** Add File: a.go\n+x\n*** Update File: b.go\n@@\n*** Delete File: c.go\n*** End Patch"}`
+	got := applyPatchPaths(args)
+	want := []string{"a.go", "b.go", "c.go"}
+	if len(got) != len(want) {
+		t.Fatalf("paths = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("paths = %v, want %v", got, want)
+		}
+	}
+}
+
+func TestFriendlyErrorStatuses(t *testing.T) {
+	cases := []struct {
+		status int
+		want   string
+	}{
+		{401, "密钥"},
+		{403, "密钥"},
+		{404, "模型"},
+		{400, "请求"},
+		{429, "频繁"},
+		{500, "服务端"},
+	}
+	for _, tc := range cases {
+		err := fmt.Errorf("%w: %w", ErrEnvironment, &llm.RetryableError{Status: tc.status, Message: "x"})
+		if got := FriendlyError(err); !strings.Contains(got, tc.want) {
+			t.Fatalf("status %d: %q missing %q", tc.status, got, tc.want)
+		}
+	}
+}
+
+func TestFriendlyErrorPlainStatus(t *testing.T) {
+	if got := friendlyError("HTTP 401 Unauthorized"); !strings.Contains(got, "密钥") {
+		t.Fatalf("plain 401 = %q", got)
+	}
+	if got := friendlyError("HTTP 404 model not found"); !strings.Contains(got, "模型") {
+		t.Fatalf("plain 404 = %q", got)
+	}
+}
+
 func TestFriendlyErrorNetwork(t *testing.T) {
 	err := fmt.Errorf("%w: %w", ErrEnvironment, &llm.RetryableError{Status: 0, Message: "dial tcp: connection refused"})
 	got := FriendlyError(err)

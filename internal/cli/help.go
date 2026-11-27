@@ -58,6 +58,7 @@ func PrintHelp(w io.Writer) {
   hb chat               显式交互
   hb sessions           列出/查看/删除会话
   hb resume <id>        恢复会话（TUI）
+  hb resume <id> --headless  非交互续跑指定未完成会话
   hb resume --last      续跑当前工作区最近一条未完成会话（最多 2 次）
   hb verify             校验证据链
   hb stats              诚实度统计

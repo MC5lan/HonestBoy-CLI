@@ -13,10 +13,10 @@ func FriendlyError(err error) string {
 	if err == nil {
 		return ""
 	}
-	// 网络/连接失败必须给出 HB-NET-001 的处置建议，而不是裸 dial 错误。
+	// 模型/网络错误给出可执行的下一步，而不是只留服务商原文。
 	var re *llm.RetryableError
-	if errors.As(err, &re) && re.Status < 400 {
-		if advice, ok := errs.Explain(string(errs.NetUnavailable)); ok {
+	if errors.As(err, &re) {
+		if advice := statusAdvice(re.Status); advice != "" {
 			return advice
 		}
 	}
@@ -52,4 +52,25 @@ func FriendlyError(err error) string {
 		msg = strings.TrimPrefix(msg, prefix)
 	}
 	return msg
+}
+
+// statusAdvice 把模型 HTTP 状态码映射成可执行的下一步。
+func statusAdvice(status int) string {
+	switch {
+	case status == 401 || status == 403:
+		return "密钥不对或没生效。检查 api_key_env、环境变量与端点；运行 hb doctor。"
+	case status == 404:
+		return "端点或模型不存在。检查 model 与 base_url（包括 /v1 路径）；运行 hb doctor。"
+	case status == 400:
+		return "请求被模型端点拒绝。检查 model、协议与 base_url；运行 hb doctor。"
+	case status == 429:
+		return "请求太频繁或额度不足。稍等再试，或换模型/检查额度；运行 hb doctor 查看配置。"
+	case status >= 500:
+		return "模型服务端错误。稍后重试；持续失败时检查 base_url 与代理。"
+	case status < 400:
+		if advice, ok := errs.Explain(string(errs.NetUnavailable)); ok {
+			return advice
+		}
+	}
+	return ""
 }

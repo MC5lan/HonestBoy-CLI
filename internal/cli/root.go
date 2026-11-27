@@ -147,6 +147,10 @@ func Execute(args []string) error {
 		if len(tail) > 0 && (tail[0] == "--last" || tail[0] == "-c") {
 			return RunResumeLast(opts, tail[1:])
 		}
+		// hb resume <id> --headless [补充要求]：脚本中续跑指定会话。
+		if len(tail) >= 2 && (tail[1] == "--headless" || tail[1] == "--run") {
+			return RunResumeID(opts, tail[0], tail[2:])
+		}
 		if !hasTTY() {
 			return fmt.Errorf("%w: resume <id> 需要 TTY；非交互续跑用 hb resume --last", ErrEnvironment)
 		}

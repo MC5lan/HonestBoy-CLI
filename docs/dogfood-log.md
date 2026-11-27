@@ -110,6 +110,10 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
     会话目录/终端/ripgrep + 建议下一步，HEAD 失败回退 GET）；`hb init` 增加可选真实连接测试；
     README/故障排查补齐 release 下载、SHA256、SmartScreen 与首次运行顺序。
     新增 startup/doctor/ping 测试与 `TestBinaryDoctor`，全量测试和 e2e 通过。
+49. 日常 CLI 第二批：`hb run` 空闲时显示“已用时”（仅 TTY）；回合结束输出紧凑回执
+    （摘要/改动/验证/未验证/下一步）；模型 401/403/404/400/429/5xx/连接错误映射为可执行建议；
+    新增 `hb resume <id> --headless`。补 HumanWriter 回执、apply_patch 路径、状态错误与
+    二进制 headless resume 测试。
 
 ## 2026-11-23
 
