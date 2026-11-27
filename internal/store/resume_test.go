@@ -139,6 +139,27 @@ func TestLatestResumableFiltersWorkdirAndCountsAttempts(t *testing.T) {
 	}
 }
 
+// 启动提示只看“最近一条会话”；如果最新一条已经正常结束，旧的崩溃会话不反复打扰。
+func TestLatestForWorkdirPrefersNewest(t *testing.T) {
+	root := t.TempDir()
+	paths := testPaths(root)
+	seedSession(t, paths, "s_crash", root, "", false, "", 0, false)
+	seedSession(t, paths, "s_done", root, core.TermDone, false, "", 0, true)
+	future := time.Now().Add(2 * time.Second)
+	if err := os.Chtimes(filepath.Join(paths.Sessions, "s_done.jsonl"), future, future); err != nil {
+		t.Fatal(err)
+	}
+	m, ok := NewSessionStore(paths).LatestForWorkdir(root)
+	if !ok || m.ID != "s_done" {
+		t.Fatalf("latest = %+v, %v; want s_done", m, ok)
+	}
+	// 显式 resume --last 仍能找到旧的崩溃会话。
+	r, err := NewSessionStore(paths).LatestResumable(root)
+	if err != nil || r.ID != "s_crash" {
+		t.Fatalf("resumable = %+v, %v; want s_crash", r, err)
+	}
+}
+
 func TestLatestResumableNone(t *testing.T) {
 	root := t.TempDir()
 	paths := testPaths(root)

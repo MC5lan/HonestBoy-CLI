@@ -2,6 +2,23 @@
 
 按现象查。错误码全表见 [`errors.md`](errors.md)，退出码见 [`exit-codes.md`](exit-codes.md)。
 
+## 第一次运行
+
+推荐顺序：
+
+```powershell
+hb doctor
+hb init
+hb probe
+hb run "读一下 README.md 并总结"
+```
+
+- `hb doctor` 检查配置、密钥变量、端点可达性、工作区写权限、会话目录与终端，最后给出“建议下一步”。
+- `hb init` 结束时会问“测试连接? [Y/n]”，发一个极小的真实请求验证端点/密钥/模型；失败不会丢配置。
+- 无 TTY（管道、CI、winget 安装后的探测）时，`hb` 无参数只打印帮助，不会进入设置向导。
+- 上次任务异常中断时，运行 `hb` 会提示“回车继续 / n 新建”；非交互场景用 `hb resume --last`。
+- 如果端点不支持 `HEAD`，`hb doctor` 会自动回退到 `GET`；收到任何 HTTP 响应都算“可达”。
+
 ## 无密钥 / 认证失败（退出码 6）
 
 ```powershell

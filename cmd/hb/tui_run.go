@@ -33,6 +33,9 @@ func runTUI(resumeID string) error {
 		contextWindow = 960000
 	}
 	sessionStore := store.NewSessionStore(store.DefaultPaths())
+	if resumeID == "" {
+		resumeStartupSession(sessionStore, wd, &resumeID)
+	}
 	var replay []core.Event
 	if resumeID != "" {
 		sess, err := sessionStore.Load(resumeID)

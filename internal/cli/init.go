@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/MC5lan/HonestBoy-CLI/internal/store"
 )
@@ -87,6 +88,21 @@ func RunInit(opts GlobalOptions, args []string) error {
 	fmt.Fprintln(out, "\n"+strings.Repeat("─", 46))
 	fmt.Fprintln(out, "✓ 设置已保存到 "+store.ConfigPath())
 	fmt.Fprintf(out, "✓ 工作区: %s（已保存为默认工作区）\n", workdir)
+
+	// 可选的真实连接测试：避免用户配完才发现密钥/模型名不对。
+	if hasTTY() {
+		answer := strings.ToLower(strings.TrimSpace(ask(in, out, "\n测试连接? [Y/n]: ", "y")))
+		if answer != "n" && answer != "no" {
+			fmt.Fprint(out, "  正在测试连接...")
+			if err := pingModel(cfg, 20*time.Second); err != nil {
+				fmt.Fprintln(out, " ✗")
+				fmt.Fprintf(out, "  连接失败: %s\n", friendlyError(err.Error()))
+				fmt.Fprintln(out, "  配置已保存。可运行 hb doctor 复查，或修改端点/模型/密钥后重试。")
+			} else {
+				fmt.Fprintln(out, " ✓ 模型可用")
+			}
+		}
+	}
 	fmt.Fprintf(out, "✓ 试试: hb run \"读一下 README.md 并总结\"\n")
 	return nil
 }

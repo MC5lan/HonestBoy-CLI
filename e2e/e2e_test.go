@@ -551,6 +551,27 @@ func TestBinaryNoArgsNonTTY(t *testing.T) {
 	}
 }
 
+// hb doctor：真实二进制下输出用户检查项和“建议下一步”。
+func TestBinaryDoctor(t *testing.T) {
+	skipUnlessE2E(t)
+	root := moduleRoot(t)
+	bin := buildBinary(t, root)
+	home := t.TempDir()
+	writeConfig(t, home, "http://127.0.0.1:9")
+	cmd := exec.Command(bin, "doctor")
+	cmd.Env = append(isolatedEnv(t, root), "LOCALAPPDATA="+home)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("doctor failed: %v\n%s", err, out)
+	}
+	text := string(out)
+	for _, want := range []string{"检查项", "模型端点", "建议下一步"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("doctor output missing %q:\n%s", want, text)
+		}
+	}
+}
+
 // TD04 F20 真实测量：端点连不上时退出 6，且提示可执行（不是裸 dial 错误）。
 func TestBinaryNetworkDownMessage(t *testing.T) {
 	skipUnlessE2E(t)

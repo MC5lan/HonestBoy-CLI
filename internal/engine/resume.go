@@ -110,6 +110,9 @@ func BuildResumePrompt(s *core.Session, reason string) string {
 	return b.String()
 }
 
+// ResumeReasonText 把中断原因码转成中文，供 CLI/TUI 展示。
+func ResumeReasonText(reason string) string { return resumeReasonText(reason) }
+
 func resumeReasonText(reason string) string {
 	switch reason {
 	case "crash":

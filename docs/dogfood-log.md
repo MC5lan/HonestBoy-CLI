@@ -105,6 +105,11 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
     发布 v0.3.1；旧 PR #488872（0.3.0）关闭，新 PR #489065（0.3.1）校验通过
     （`Validation-Completed` / `Azure-Pipeline-Passed`），等待 winget-pkgs moderator 合并；
     本机安装 0.3.1 验证通过。
+48. 首次体验第一批：`hb` 启动时检测当前工作区最近一条未完成会话并在 TTY 下提示
+    “回车继续 / n 新建 / s 查看”；`hb doctor` 重做为用户检查（配置/模型/密钥/端点/工作区/
+    会话目录/终端/ripgrep + 建议下一步，HEAD 失败回退 GET）；`hb init` 增加可选真实连接测试；
+    README/故障排查补齐 release 下载、SHA256、SmartScreen 与首次运行顺序。
+    新增 startup/doctor/ping 测试与 `TestBinaryDoctor`，全量测试和 e2e 通过。
 
 ## 2026-11-23
 

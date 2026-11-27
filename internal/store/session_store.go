@@ -417,6 +417,21 @@ func (s *SessionStore) LatestResumable(workdir string) (SessionMeta, error) {
 	return SessionMeta{}, ErrNoResumable
 }
 
+// LatestForWorkdir 返回该工作区最近一条会话（不论终态）。
+// 启动提示只在“最近一条就是未完成会话”时出现，避免旧的崩溃会话反复打扰。
+func (s *SessionStore) LatestForWorkdir(workdir string) (SessionMeta, bool) {
+	metas, err := s.List()
+	if err != nil {
+		return SessionMeta{}, false
+	}
+	for _, m := range metas {
+		if sameDir(m.Cwd, workdir) {
+			return m, true
+		}
+	}
+	return SessionMeta{}, false
+}
+
 // sameDir 比较两个工作区路径；Windows 下忽略大小写。
 func sameDir(a, b string) bool {
 	if a == "" || b == "" {

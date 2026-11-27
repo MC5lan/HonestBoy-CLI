@@ -128,7 +128,40 @@ hb config set approval.write ask
 
 ## 安装
 
-**Windows（构建 + 安装到 PATH + 启动向导）**
+### 方式 A：下载 release（推荐，winget 合并前）
+
+1. 从 [Releases](https://github.com/MC5lan/HonestBoy-CLI/releases) 下载对应平台的 zip。
+2. Windows 解压到 `%LOCALAPPDATA%\HB\bin`，把该目录加入用户 `PATH`，新开终端。
+3. 建议校验 SHA256：
+
+```powershell
+Get-FileHash .\hb_0.3.1_windows_amd64.zip -Algorithm SHA256
+# 与 release 里的 checksums.txt 对应行比较
+```
+
+4. 第一次运行：
+
+```powershell
+hb doctor      # 检查配置、密钥变量、端点、工作区
+hb init        # 配置端点/模型/密钥变量；可顺便测试连接
+hb probe       # 离线验证 Gate 三态
+```
+
+> 未做代码签名，SmartScreen 可能提示“Windows 已保护你的电脑”；
+> 选择“更多信息 → 仍要运行”。SHA256 见 release 的 `checksums.txt`。
+> winget 清单 PR 已通过校验，合并后可用 `winget install --id HonestBoy.hb -e`。
+
+### 方式 B：winget（等清单合并后）
+
+```powershell
+winget install --id HonestBoy.hb -e
+```
+
+当前 PR：https://github.com/microsoft/winget-pkgs/pull/489065
+
+### 方式 C：从源码（开发/贡献）
+
+Windows：
 
 ```powershell
 git clone https://github.com/MC5lan/HonestBoy-CLI.git
@@ -136,7 +169,7 @@ cd HonestBoy-CLI
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
-**Linux（构建 + 安装）**
+Linux：
 
 ```bash
 git clone https://github.com/MC5lan/HonestBoy-CLI.git
@@ -145,7 +178,7 @@ go build -o bin/hb ./cmd/hb
 install -m 755 bin/hb ~/.local/bin/hb   # 确保 ~/.local/bin 在 PATH
 ```
 
-需要 Go 1.27+。`winget` / `scoop` 清单见 `winget/` 与 `scoop/`；每次发布后按 `checksums.txt` 回填 SHA256。
+从源码构建需要 Go 1.27+。`winget/` 与 `scoop/` 是发布清单的暂存目录。
 
 ## 文档
 
