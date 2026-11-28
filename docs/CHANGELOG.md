@@ -1,5 +1,23 @@
 # 变更记录
 
+## Unreleased
+
+### 修复
+
+- 搜索在 rg 正常返回 0 条时不再重复执行 Go 兜底遍历（10 万文件实测 31.3s → 4.8s）；
+  rg 结果改为流式读取，命中满 `max_results` 立即停止，常见词不再等全仓扫完。
+- `hb doctor` 的 ripgrep 缺失提示改成可直接执行的安装命令；README 补充大仓库安装建议。
+
+### 质量
+
+- CI 接入 `golangci-lint` v2、`staticcheck` 与 `deadcode`；本地与 Linux CI 均清零。
+- 修复 `LoopGuard` 无效循环、未使用 stub/helper，以及一批 `errcheck`/`errorlint`/`noctx` 问题。
+
+### 文档
+
+- 补齐 SHA256 校验、手动回滚、最近两个版本保留和会话备份说明。
+- 新增 30 天真实自用模板与 3 人陌生人测试脚本（均为空白模板，不代表已执行）。
+
 ## v0.4.0（2026-11-28）
 
 ### 首次体验

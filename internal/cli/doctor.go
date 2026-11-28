@@ -143,7 +143,7 @@ func doctorChecks(cfg store.Config, cfgErr error, wd string, wdErr error, getenv
 		checks = append(checks, checkResult{name: "ripgrep", detail: "可用", level: "ok"})
 	} else {
 		checks = append(checks, checkResult{name: "ripgrep", detail: "未找到", level: "warn",
-			fix: "搜索会降级为内置遍历，功能可用但更慢"})
+			fix: "搜索会降级为内置遍历；大仓库建议安装：winget install BurntSushi.ripgrep.MSVC（或 scoop/apt install ripgrep）"})
 	}
 	return checks
 }

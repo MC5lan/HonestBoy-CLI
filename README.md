@@ -148,6 +148,9 @@ hb init        # 配置端点/模型/密钥变量；可顺便测试连接
 hb probe       # 离线验证 Gate 三态
 ```
 
+大仓库建议安装 ripgrep：Windows `winget install BurntSushi.ripgrep.MSVC`，
+Linux `apt install ripgrep`。没有也能搜索，但内置遍历在 10 万文件级会明显变慢；`hb doctor` 会提示。
+
 > 未做代码签名，SmartScreen 可能提示“Windows 已保护你的电脑”；
 > 选择“更多信息 → 仍要运行”。SHA256 见 release 的 `checksums.txt`。
 > winget 清单 PR 已通过校验，合并后可用 `winget install --id HonestBoy.hb -e`。
