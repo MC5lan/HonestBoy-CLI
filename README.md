@@ -8,7 +8,7 @@
   <a href="https://github.com/MC5lan/HonestBoy-CLI/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/MC5lan/HonestBoy-CLI/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Go" src="https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white">
   <img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue">
-  <img alt="Status" src="https://img.shields.io/badge/status-v0.3.1-blue">
+  <img alt="Status" src="https://img.shields.io/badge/status-v0.4.0-blue">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey">
 </p>
 
@@ -136,7 +136,7 @@ hb config set approval.write ask
 3. 建议校验 SHA256：
 
 ```powershell
-Get-FileHash .\hb_0.3.1_windows_amd64.zip -Algorithm SHA256
+Get-FileHash .\hb_0.4.0_windows_amd64.zip -Algorithm SHA256
 # 与 release 里的 checksums.txt 对应行比较
 ```
 
@@ -206,7 +206,7 @@ make release-check   # build + vet + test + checkdeps + e2e
 ## 状态
 
 核心机制、三套协议、TUI、证据链、检查点、计划模式、常开质量契约与发布脚手架均已实现。
-`v0.3.1` 已发布；1.0 发布门与未完成项见 [`docs/roadmap-v1.0.md`](docs/roadmap-v1.0.md)，
+`v0.4.0` 已发布；1.0 发布门与未完成项见 [`docs/roadmap-v1.0.md`](docs/roadmap-v1.0.md)，
 已知技术债见 [`docs/tech-debt.md`](docs/tech-debt.md)。
 
 Apache-2.0，见 [`LICENSE`](LICENSE)。
