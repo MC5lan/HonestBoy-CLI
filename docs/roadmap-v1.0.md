@@ -123,7 +123,7 @@
 - [x] CI 增加 core/tools/tui `-count=10`；本地已通过；保持 `-race` (M)
 - [x] 200 回合连续回合无 panic（未测 goroutine/内存阈值）(L)
 - [x] 50 轮 TUI 堆增长 <50MB (M)
-- [~] 启动实测 57–64ms；1000 事件恢复 9.8ms；10 万文件搜索实测：无 rg 25.7s、有 rg 4.7s（Defender 开启），**未达 <3s**；已修复 rg 无命中双扫，详见 `docs/perf-baseline.md` (M)
+- [~] 启动实测 57–64ms；1000 事件恢复 9.8ms；10 万文件搜索：Linux 无 rg 1.19s / 有 rg 0.22s **达标**，Windows Defender 无 rg 25.7s / 有 rg 4.7s **未达 <3s**；已修复 rg 无命中双扫，详见 `docs/perf-baseline.md` (M)
 - [~] 30 个失败场景表 + 7 类极端输入映射（`docs/failure-scenarios.md`）；G1–G7 已修复、断流续写已接入；`go test ./...` 与 9 条 `HB_E2E=1` 二进制测试全绿，断网/只读/10MB 单行/50 万字（峰值 34–41MB）已实测；仍待磁盘满（需管理员）/权限/百万文件/10 分钟 (L)
 - [x] `golangci-lint` 进 CI；staticcheck U1000/deadcode 清零（2026-11-28：golangci-lint v2.15.0、staticcheck v0.8.2、deadcode v0.53.0 本地全绿；CI run 46122715115 的 lint/build/e2e/govuln 全部通过）(M)
 - [ ] 30 个连续自然日真实自用；每条有修复或不改理由（模板 `docs/dogfood-template.md`；开发期 51 条记录不冒充连续 30 天）(L)
