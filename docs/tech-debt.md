@@ -18,4 +18,4 @@
 | D12 | ~~本机无 gcc，未跑 `go test -race`~~ | 验证 | — | — | 2026-11-24 CI run `45355568756` 的 Linux build job 已跑 `go test ./... -race` 并通过 | 已关闭（CI 验证） |
 | D13 | ~~`hb upgrade` 下载资产固定 2 分钟超时~~ | 交互 | — | — | 2026-11-24 默认超时改为 15 分钟，`--timeout` 可覆盖，网络/429/5xx 自动重试 3 次，TTY 显示下载进度；真实 GitHub 升级复测通过（v0.1.1） | 已关闭 |
 | D14 | 部分核心函数认知复杂度偏高（`runTurn` 405、`SessionStore.List` 87、`tui.applyEvent` 82；另有 21 个函数 >30） | 可维护性 | 修改回合循环、会话列表或 TUI 事件时容易引入回归 | 继续堆功能前 | v1.0 以 gocognit/gocyclo 阈值 80 + 对三个已知函数按函数豁免兜底；v1.1 优先拆分 `runTurn`（计划/执行/验证三段） | 已知可接受 |
-| D15 | Windows Defender 下 10 万小文件搜索未达 <3s：rg 4.7s、无 rg 兜底 25.7s；Linux 已实测无 rg 1.19s / 有 rg 0.22s 达标 | 性能 | Windows 大仓库搜索等待时间长 | 10 万级文件 + Windows 实时扫描 | 已修复 rg 无命中双扫与流式早停；`hb doctor` 提示装 rg；建议 Windows 目标改为“有 rg <5s”，待产品决策 | 待决策（仅 Windows 子项） |
+| D15 | ~~Windows Defender 下 10 万小文件搜索未达 <3s~~ | 性能 | — | 10 万级文件 + Windows 实时扫描 | 2026-11-28 口径确认：Linux `<3s`（实测 1.19s/0.22s）、Windows 有 rg `<5s`（4.7s）、Windows 无 rg 只保证可用 + `hb doctor` 提示安装（25.7s，不设硬时延）；已修复 rg 无命中双扫与流式早停 | 已关闭（口径已定） |
