@@ -117,6 +117,10 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
 50. TUI 第三批：`/diff` `/undo` `/rewind` 改为异步 `tea.Cmd`，执行中显示“正在执行”，
     大仓库不再阻塞按键与渲染；工具输出支持 `/verbose n` 选卡片、`all` 全部、`list` 列出、
     `last` 最后一个，`Ctrl+O` 仍是最后一个卡片的快捷切换。更新 tech-debt D09/D10 为已关闭。
+51. v0.4.0 发布：三批体验收口（首次体验、日常 CLI、TUI）进入正式版；tag/Release 已推送，
+    三个 zip + checksums 上传；winget/scoop 0.4.0 清单回填真实 SHA256；
+    本机覆盖安装 0.4.0（旧 0.3.1 备份为 `hb.exe.0.3.1.bak`），`hb probe` 与 `hb upgrade --check` 通过。
+    winget 外部 PR #489065 仍为 0.3.1，等 moderator 合并后再提 0.4.0。
 
 ## 2026-11-23
 

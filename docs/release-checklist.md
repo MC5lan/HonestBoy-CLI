@@ -142,3 +142,15 @@ Windows 下旧文件先改名为 `hb.exe.old`，下次启动自动清理。
   等待 winget-pkgs moderator 合并。旧 #488872（0.3.0）已关闭。
 - 本机安装 0.3.1（旧 0.3.0 备份为 `hb.exe.0.3.0.bak`）；`hb probe` 通过。
 - 说明：goreleaser 仍未在本机运行；产物用相同 ldflags 手工交叉编译。
+
+## 2026-11-28 v0.4.0 发布记录
+
+- 体验收口三批：启动接续/doctor/init 测试连接；`hb run` 进度与回执、错误 playbook、`resume <id> --headless`；TUI 异步命令与单卡片工具输出。
+- 发布提交 `54f3e25`；tag 与 GitHub Release：https://github.com/MC5lan/HonestBoy-CLI/releases/tag/v0.4.0
+- 三个 zip + `checksums.txt` 已上传：
+  - windows/amd64 `dbb8570709933dbdef390e898337302dea8b4d3b78cbe5251e6ccdeb2de639d2`
+  - windows/arm64 `b4f453f08d622ace9f68e5ffb29b870911f48b6f4b5fb48287ac19a1eb0f1d19`
+  - linux/amd64 `30b9fbe9b2f31c124b4b0378a0d55bc7146025a4c13b0520eb313ac3423e4515`
+- winget/scoop 0.4.0 清单已生成并回填真实 SHA256。外部 winget PR #489065 仍是 0.3.1（已 Validation-Completed，等待 moderator）；0.4.0 的 winget PR 待其合并后再提，避免同包双 PR。
+- 本机安装 0.4.0（旧 0.3.1 备份为 `hb.exe.0.3.1.bak`）；`hb probe`、`hb upgrade --check` 通过。
+- 说明：goreleaser 仍未在本机运行；产物用相同 ldflags 手工交叉编译。
