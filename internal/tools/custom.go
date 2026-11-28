@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -69,7 +70,8 @@ func (t *CustomTool) Run(ctx context.Context, raw json.RawMessage) (Result, erro
 	}
 	exit := 0
 	if err != nil {
-		if ee, ok := err.(*exec.ExitError); ok {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
 			exit = ee.ExitCode()
 		} else {
 			return failResult("启动自定义工具失败: " + err.Error())

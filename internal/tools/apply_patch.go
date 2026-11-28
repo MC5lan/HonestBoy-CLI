@@ -210,21 +210,21 @@ func (t *ApplyPatchTool) writeAtomic(path string, data, existing []byte) error {
 		return err
 	}
 	if _, err = f.Write(out); err != nil {
-		f.Close()
-		t.sb.Remove(tmp)
+		_ = f.Close()
+		_ = t.sb.Remove(tmp)
 		return err
 	}
 	if err = f.Sync(); err != nil {
-		f.Close()
-		t.sb.Remove(tmp)
+		_ = f.Close()
+		_ = t.sb.Remove(tmp)
 		return err
 	}
 	if err = f.Close(); err != nil {
-		t.sb.Remove(tmp)
+		_ = t.sb.Remove(tmp)
 		return err
 	}
 	if err = t.sb.Rename(tmp, path); err != nil {
-		t.sb.Remove(tmp)
+		_ = t.sb.Remove(tmp)
 		return err
 	}
 	_ = sha256.Sum256(out)

@@ -38,8 +38,6 @@ var (
 	pyClass    = regexp.MustCompile(`^\s*class\s+([A-Za-z_]\w*)`)
 	jsFunc     = regexp.MustCompile(`^\s*(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$]\w*)\s*\(`)
 	jsClass    = regexp.MustCompile(`^\s*(?:export\s+)?class\s+([A-Za-z_$]\w*)`)
-	goFn       = regexp.MustCompile(`^\s*func\s+(?:\([^)]*\)\s*)?([A-Za-z_]\w*)\s*\(`)
-	goType     = regexp.MustCompile(`^\s*type\s+([A-Za-z_]\w*)\s`)
 	rustFn     = regexp.MustCompile(`^\s*(?:pub\s+)?(?:async\s+)?fn\s+([A-Za-z_]\w*)\s*\(`)
 	rustStruct = regexp.MustCompile(`^\s*(?:pub\s+)?struct\s+([A-Za-z_]\w*)`)
 )

@@ -18,13 +18,6 @@ func (b *EventBus) Subscribe() chan []byte {
 	return ch
 }
 
-func (b *EventBus) Unsubscribe(ch chan []byte) {
-	b.mu.Lock()
-	delete(b.subs, ch)
-	b.mu.Unlock()
-	close(ch)
-}
-
 // Close 关闭所有订阅 channel，供消费者退出。
 func (b *EventBus) Close() {
 	b.mu.Lock()

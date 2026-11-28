@@ -21,17 +21,18 @@ func (g *LoopGuard) Check(led *Ledger, toolCalls int, turnID string) (halt bool,
 	if led == nil {
 		return false, ""
 	}
-	for i := len(led.entries) - 1; i >= 0; i-- {
-		e := led.entries[i]
-		n := led.FailureRepeatedInTurn(e.What, e.Why, turnID)
-		switch {
-		case n >= 3:
-			return true, haltRepeated3x
-		case n == 2:
-			return false, warnRepeatedTwice
-		default:
-			return false, ""
-		}
+	if len(led.entries) == 0 {
+		return false, ""
 	}
-	return false, ""
+	// FailureRepeatedInTurn 统计的是“末尾连续”的同一失败；
+	// 只需看最后一条，之前的失败如果中间隔了别的失败就不算重复。
+	e := led.entries[len(led.entries)-1]
+	switch n := led.FailureRepeatedInTurn(e.What, e.Why, turnID); {
+	case n >= 3:
+		return true, haltRepeated3x
+	case n == 2:
+		return false, warnRepeatedTwice
+	default:
+		return false, ""
+	}
 }

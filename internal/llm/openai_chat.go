@@ -119,7 +119,7 @@ func (c *ChatClient) stream(ctx context.Context, req Request, out chan<- Chunk) 
 	if err != nil {
 		return &RetryableError{Status: 0, Retryable: true, Message: err.Error()}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 400 {
 		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
 		retryable, _ := ClassifyStatus(resp.StatusCode)

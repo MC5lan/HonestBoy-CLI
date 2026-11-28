@@ -50,14 +50,14 @@ func RunSessions(opts GlobalOptions, args []string) error {
 			}
 			tail := 50
 			if len(args) >= 4 && args[2] == "--tail" {
-				fmt.Sscanf(args[3], "%d", &tail)
+				_, _ = fmt.Sscanf(args[3], "%d", &tail)
 			}
 			start := 0
 			if len(sess.Events) > tail {
 				start = len(sess.Events) - tail
 			}
 			for _, ev := range sess.Events[start:] {
-				WriteJSONEvent(os.Stdout, ev)
+				_ = WriteJSONEvent(os.Stdout, ev)
 			}
 			return nil
 		case "rm":
@@ -79,7 +79,7 @@ func RunSessions(opts GlobalOptions, args []string) error {
 	limit := 20
 	for i := 1; i < len(args); i += 2 {
 		if args[i-1] == "--limit" {
-			fmt.Sscanf(args[i], "%d", &limit)
+			_, _ = fmt.Sscanf(args[i], "%d", &limit)
 		}
 	}
 	if len(metas) > limit {

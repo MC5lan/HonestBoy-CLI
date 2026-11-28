@@ -105,7 +105,7 @@ func runOneProbe(prompt string, script [][]llm.Chunk) (core.Terminal, string, ti
 	if err != nil {
 		return core.TermFailed, "io", 0
 	}
-	defer os.RemoveAll(tmp)
+	defer func() { _ = os.RemoveAll(tmp) }()
 	_ = os.WriteFile(filepath.Join(tmp, "go.mod"), []byte("module probe\n\ngo 1.27\n"), 0o600)
 	_ = os.WriteFile(filepath.Join(tmp, "main.go"), []byte("package main\nfunc main() {}\n"), 0o600)
 
@@ -113,7 +113,7 @@ func runOneProbe(prompt string, script [][]llm.Chunk) (core.Terminal, string, ti
 	if err != nil {
 		return core.TermFailed, "io", 0
 	}
-	defer sb.Close()
+	defer func() { _ = sb.Close() }()
 	paths := store.Paths{Root: tmp, Sessions: filepath.Join(tmp, "sessions"), Logs: filepath.Join(tmp, "logs")}
 	client := &scriptedClient{responses: script}
 	eng := engine.New(engine.Config{

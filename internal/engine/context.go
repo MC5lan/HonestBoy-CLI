@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -136,7 +137,7 @@ func gitInfo(workdir string) string {
 		{"status", "--short"},
 		{"diff", "--stat"},
 	} {
-		cmd := exec.Command("git", args...)
+		cmd := exec.CommandContext(context.Background(), "git", args...)
 		cmd.Dir = workdir
 		data, err := cmd.Output()
 		if err != nil {

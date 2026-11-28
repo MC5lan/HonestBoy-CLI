@@ -143,7 +143,7 @@ func (e *Engine) openLedger() {
 				e.ledger.Record(entry)
 			}
 		}
-		f.Close()
+		_ = f.Close()
 	}
 	if f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600); err == nil {
 		e.ledgerFile = f
@@ -155,7 +155,7 @@ func (e *Engine) recordFailure(entry core.LedgerEntry) {
 	e.ledger.Record(entry)
 	if e.ledgerFile != nil {
 		if b, err := json.Marshal(entry); err == nil {
-			e.ledgerFile.Write(append(b, '\n'))
+			_, _ = e.ledgerFile.Write(append(b, '\n'))
 		}
 	}
 }

@@ -17,7 +17,7 @@ import (
 // RunGC 清理过期会话与日志（T908）。
 // 默认只列出（dry-run），加 --yes 才真正删除。
 func RunGC(opts GlobalOptions, args []string) error {
-	dry := opts.Yes == false
+	dry := !opts.Yes
 	for _, a := range args {
 		if a == "--dry-run" {
 			dry = true

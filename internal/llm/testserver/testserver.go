@@ -42,7 +42,7 @@ func New(t *testing.T, script Script) *Server {
 
 		if i < len(s.script.StatusCodes) && s.script.StatusCodes[i] >= 400 {
 			w.WriteHeader(s.script.StatusCodes[i])
-			fmt.Fprint(w, `{"error":"scripted failure"}`)
+			_, _ = fmt.Fprint(w, `{"error":"scripted failure"}`)
 			return
 		}
 		if i >= len(s.script.Responses) {
@@ -60,12 +60,12 @@ func New(t *testing.T, script Script) *Server {
 				// 把占位符换成真正的非法字节，模拟模型吐出乱码（适配器会 SanitizeUTF8）。
 				payload = strings.ReplaceAll(payload, "%BAD%", string([]byte{0xff, 0xfe}))
 			}
-			fmt.Fprintf(w, "data: %s\n\n", payload)
+			_, _ = fmt.Fprintf(w, "data: %s\n\n", payload)
 			if flusher != nil {
 				flusher.Flush()
 			}
 		}
-		fmt.Fprint(w, "data: [DONE]\n\n")
+		_, _ = fmt.Fprint(w, "data: [DONE]\n\n")
 		if flusher != nil {
 			flusher.Flush()
 		}

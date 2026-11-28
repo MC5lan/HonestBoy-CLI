@@ -4,6 +4,7 @@ package git
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -24,7 +25,7 @@ type Repo struct {
 }
 
 func Open(workdir string) (*Repo, error) {
-	cmd := exec.Command("git", "rev-parse", "--is-inside-work-tree")
+	cmd := exec.CommandContext(context.Background(), "git", "rev-parse", "--is-inside-work-tree")
 	cmd.Dir = workdir
 	out, err := cmd.Output()
 	if err != nil || strings.TrimSpace(string(out)) != "true" {
@@ -34,7 +35,7 @@ func Open(workdir string) (*Repo, error) {
 }
 
 func (r *Repo) run(args ...string) (string, error) {
-	cmd := exec.Command("git", args...)
+	cmd := exec.CommandContext(context.Background(), "git", args...)
 	cmd.Dir = r.Workdir
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -149,13 +150,4 @@ func (r *Repo) UndoLast() (string, error) {
 		return "", err
 	}
 	return sha, nil
-}
-
-// Log 返回最近 n 条提交摘要。
-func (r *Repo) Log(n int) (string, error) {
-	out, err := r.run("log", fmt.Sprintf("-%d", n), "--format=%h %an: %s")
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(out), nil
 }

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -181,7 +182,7 @@ func printDoctor(checks []checkResult) {
 func probeEndpoint(baseURL string) (int, error) {
 	client := &http.Client{Timeout: 5 * time.Second}
 	do := func(method string) (*http.Response, error) {
-		req, err := http.NewRequest(method, baseURL, nil)
+		req, err := http.NewRequestWithContext(context.Background(), method, baseURL, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -191,14 +192,14 @@ func probeEndpoint(baseURL string) (int, error) {
 	resp, err := do(http.MethodHead)
 	if err != nil || resp.StatusCode == http.StatusMethodNotAllowed || resp.StatusCode == http.StatusNotImplemented || resp.StatusCode >= 500 {
 		if resp != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 		resp, err = do(http.MethodGet)
 	}
 	if err != nil {
 		return 0, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	return resp.StatusCode, nil
 }
 

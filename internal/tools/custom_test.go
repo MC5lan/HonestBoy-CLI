@@ -15,8 +15,8 @@ func TestCustomToolLoadRegisterRun(t *testing.T) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	command := "go"
-	args := []string{"version"}
+	var command string
+	var args []string
 	if runtime.GOOS == "windows" {
 		command, args = "cmd", []string{"/c", "echo", "{text}"}
 	} else {

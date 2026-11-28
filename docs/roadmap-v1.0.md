@@ -125,7 +125,7 @@
 - [x] 50 轮 TUI 堆增长 <50MB (M)
 - [~] 启动实测 57–64ms；1000 事件恢复 9.8ms；10 万文件搜索未实测 (M)
 - [~] 30 个失败场景表 + 7 类极端输入映射（`docs/failure-scenarios.md`）；G1–G7 已修复、断流续写已接入；`go test ./...` 与 9 条 `HB_E2E=1` 二进制测试全绿，断网/只读/10MB 单行/50 万字（峰值 34–41MB）已实测；仍待磁盘满（需管理员）/权限/百万文件/10 分钟 (L)
-- [ ] `golangci-lint` 进 CI；staticcheck U1000/deadcode 清零 (M)
+- [x] `golangci-lint` 进 CI；staticcheck U1000/deadcode 清零（2026-11-28：golangci-lint v2.15.0、staticcheck v0.8.2、deadcode v0.53.0 本地全绿；Linux CI 待本次提交验证）(M)
 - [ ] 30 天自用记录从 23 条补到 30 条；每条有修复或不改理由 (L)
 - [ ] 3 人陌生测试 ≥2/3 成功；新人 30 分钟跑通记录 (L)
 

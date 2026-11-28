@@ -54,7 +54,7 @@ func runTUI(resumeID string) error {
 	if err != nil {
 		return fmt.Errorf("%w: %v", cli.ErrEnvironment, err)
 	}
-	defer sb.Close()
+	defer func() { _ = sb.Close() }()
 	registry := tools.NewDefaultRegistry(sb, tools.NewReadGuard(), cfg.Shell)
 	if err := tools.RegisterCustomTools(registry, cfg.Tools.CustomDir, wd); err != nil {
 		return fmt.Errorf("%w: 自定义工具加载失败: %v", cli.ErrEnvironment, err)

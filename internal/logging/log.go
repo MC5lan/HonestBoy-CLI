@@ -1,13 +1,10 @@
 package logging
 
 import (
-	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 )
@@ -82,18 +79,4 @@ func (w *redactWriter) Write(p []byte) (int, error) {
 		return len(p), err
 	}
 	return w.inner.Write(p)
-}
-
-// With 给 logger 绑定会话/回合/序号上下文（T901）。
-func With(sessionID, turnID string, seq uint64) *slog.Logger {
-	return L().With("session_id", sessionID, "turn_id", turnID, "seq", seq)
-}
-
-// DumpEvent 把事件以诊断日志记录（与产品事件分离）。
-func DumpEvent(ev any) {
-	b, err := json.Marshal(ev)
-	if err != nil {
-		return
-	}
-	L().Debug("event", "payload", strings.TrimSpace(fmt.Sprint(string(b))))
 }

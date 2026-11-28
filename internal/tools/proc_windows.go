@@ -3,6 +3,7 @@
 package tools
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 )
@@ -16,6 +17,6 @@ func killProcessTree(cmd *exec.Cmd) {
 	if cmd.Process == nil {
 		return
 	}
-	_ = exec.Command("taskkill", "/T", "/F", "/PID", fmt.Sprint(cmd.Process.Pid)).Run()
+	_ = exec.CommandContext(context.Background(), "taskkill", "/T", "/F", "/PID", fmt.Sprint(cmd.Process.Pid)).Run()
 	_ = cmd.Process.Kill()
 }

@@ -81,7 +81,7 @@ func TestApprovalHighRiskYesApproves(t *testing.T) {
 		Resp: make(chan core.ApprovalDecision, 1),
 	}
 	m.Update(ask)
-	for _, r := range []rune("yes") {
+	for _, r := range "yes" {
 		m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
 	}
 	m.Update(tea.KeyMsg{Type: tea.KeyEnter})

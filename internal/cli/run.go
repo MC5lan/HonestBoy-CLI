@@ -21,7 +21,7 @@ import (
 // RunRun 实现 hb run：接引擎、消费事件流、按终态退出。
 func RunRun(opts GlobalOptions, args []string) error {
 	_ = logging.Init(opts.Debug, "")
-	defer logging.Close()
+	defer func() { _ = logging.Close() }()
 	logging.L().Info("hb run", "model", opts.Model, "protocol", opts.Protocol)
 
 	cfg, err := store.Load()
@@ -71,7 +71,7 @@ func runOnce(opts GlobalOptions, cfg store.Config, workdir, prompt, resumeID str
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrEnvironment, err)
 	}
-	defer sb.Close()
+	defer func() { _ = sb.Close() }()
 	guard := tools.NewReadGuard()
 	registry := tools.NewDefaultRegistry(sb, guard, cfg.Shell)
 	if err := tools.RegisterCustomTools(registry, cfg.Tools.CustomDir, workdir); err != nil {

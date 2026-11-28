@@ -194,21 +194,21 @@ func (t *WriteFileTool) Run(ctx context.Context, args json.RawMessage) (Result, 
 		return failResult("创建临时文件失败" + ioAdvice + ": " + err.Error())
 	}
 	if _, err = f.WriteString(content); err != nil {
-		f.Close()
-		t.sb.Remove(tmp)
+		_ = f.Close()
+		_ = t.sb.Remove(tmp)
 		return failResult("写入失败" + ioAdvice + ": " + err.Error())
 	}
 	if err = f.Sync(); err != nil {
-		f.Close()
-		t.sb.Remove(tmp)
+		_ = f.Close()
+		_ = t.sb.Remove(tmp)
 		return failResult("同步失败" + ioAdvice + ": " + err.Error())
 	}
 	if err = f.Close(); err != nil {
-		t.sb.Remove(tmp)
+		_ = t.sb.Remove(tmp)
 		return failResult("关闭失败" + ioAdvice + ": " + err.Error())
 	}
 	if err = t.sb.Rename(tmp, a.Path); err != nil {
-		t.sb.Remove(tmp)
+		_ = t.sb.Remove(tmp)
 		return failResult("原子替换失败" + ioAdvice + ": " + err.Error())
 	}
 	t.guard.MarkRead(a.Path, []byte(content))

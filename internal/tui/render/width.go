@@ -2,7 +2,6 @@ package render
 
 import (
 	"strings"
-	"unicode"
 
 	"github.com/rivo/uniseg"
 )
@@ -46,16 +45,4 @@ func Pad(s string, w int) string {
 		return s + strings.Repeat(" ", n)
 	}
 	return s
-}
-
-// VisibleRunes 过滤控制字符，用于快照测试的可读输出。
-func VisibleRunes(s string) string {
-	var b strings.Builder
-	for _, r := range s {
-		if unicode.IsControl(r) && r != '\n' && r != '\t' {
-			continue
-		}
-		b.WriteRune(r)
-	}
-	return b.String()
 }

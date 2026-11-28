@@ -57,10 +57,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Action == tea.MouseActionPress {
 			switch msg.Button {
 			case tea.MouseButtonWheelUp:
-				m.view.LineUp(3)
+				m.view.ScrollUp(3)
 				m.follow = m.view.AtBottom()
 			case tea.MouseButtonWheelDown:
-				m.view.LineDown(3)
+				m.view.ScrollDown(3)
 				m.follow = m.view.AtBottom()
 			}
 		}

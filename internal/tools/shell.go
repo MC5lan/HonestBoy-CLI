@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -107,14 +108,16 @@ func (t *ShellTool) Run(ctx context.Context, args json.RawMessage) (Result, erro
 		killProcessTree(cmd)
 		// 子进程可能仍持有 stdout 管道，不能无限等 cmd.Wait。
 		select {
-		case <-done:
+		case err := <-done:
+			_ = err // 超时路径只等 500ms，避免子进程仍持有管道时卡死。
 		case <-time.After(500 * time.Millisecond):
 		}
 		return Result{OK: false, Output: ErrCommandTimeout.Error(), Provenance: core.ProvObserved}, nil
 	case waitErr := <-done:
 		exitCode := 0
 		if waitErr != nil {
-			if ee, ok := waitErr.(*exec.ExitError); ok {
+			var ee *exec.ExitError
+			if errors.As(waitErr, &ee) {
 				exitCode = ee.ExitCode()
 			} else {
 				return failResult("执行失败: " + waitErr.Error())

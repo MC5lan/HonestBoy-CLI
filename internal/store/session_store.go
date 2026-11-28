@@ -159,7 +159,7 @@ func (s *SessionStore) appendLine(id string, v jsonlLine) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	if _, err = f.Write(append(line, '\n')); err != nil {
 		return err
 	}
@@ -196,8 +196,6 @@ func (s *SessionStore) Open(id string) (*core.Session, error) {
 	s.sessionID = id
 	return sess, nil
 }
-
-func (s *SessionStore) SessionID() string { return s.sessionID }
 
 func (s *SessionStore) AppendEvent(e core.Event) error {
 	raw, err := json.Marshal(e)
@@ -273,7 +271,7 @@ func (s *SessionStore) Load(id string) (*core.Session, error) {
 			}
 			if pending != nil {
 				if err := s.applyLine(sess, pending); err != nil {
-					f.Close()
+					_ = f.Close()
 					return nil, err
 				}
 			}
@@ -285,13 +283,13 @@ func (s *SessionStore) Load(id string) (*core.Session, error) {
 				if partIdx == len(parts)-1 && errors.Is(err, errTruncatedTail) {
 					s.RecoveredTail = true
 				} else {
-					f.Close()
+					_ = f.Close()
 					return nil, err
 				}
 			}
 		}
 		err = scanner.Err()
-		f.Close()
+		_ = f.Close()
 		if err != nil {
 			return nil, err
 		}
@@ -380,7 +378,7 @@ func (s *SessionStore) List() ([]SessionMeta, error) {
 					}
 				}
 			}
-			f.Close()
+			_ = f.Close()
 		}
 		// 有 turn_start 但没有 turn_end：进程在回合中途被强杀。
 		// 只看最后一个 turn_end，避免旧 receipt/旧回合掩盖后续中断。
@@ -523,7 +521,7 @@ func (s *SessionStore) AllReceipts() ([]core.Receipt, error) {
 					out = append(out, r)
 				}
 			}
-			f.Close()
+			_ = f.Close()
 		}
 	}
 	return out, nil

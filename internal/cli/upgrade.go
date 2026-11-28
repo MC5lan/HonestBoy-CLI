@@ -3,6 +3,7 @@ package cli
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -261,7 +262,7 @@ func retryableUpgradeError(err error) bool {
 
 func httpGetOnce(url string, timeout time.Duration, label string, showProgress bool) ([]byte, error) {
 	client := &http.Client{Timeout: timeout}
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +274,7 @@ func httpGetOnce(url string, timeout time.Duration, label string, showProgress b
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return nil, &httpStatusError{url: url, status: resp.StatusCode}
 	}
@@ -364,7 +365,7 @@ func extractBinary(archive []byte) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		defer rc.Close()
+		defer func() { _ = rc.Close() }()
 		return io.ReadAll(io.LimitReader(rc, 200<<20))
 	}
 	return nil, fmt.Errorf("压缩包里没有 hb 二进制")
@@ -379,21 +380,21 @@ func replaceBinary(dest string, data []byte) error {
 	}
 	tmpName := tmp.Name()
 	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		os.Remove(tmpName)
+		_ = tmp.Close()
+		_ = os.Remove(tmpName)
 		return err
 	}
 	if err := tmp.Close(); err != nil {
-		os.Remove(tmpName)
+		_ = os.Remove(tmpName)
 		return err
 	}
 	if err := os.Chmod(tmpName, 0o755); err != nil {
-		os.Remove(tmpName)
+		_ = os.Remove(tmpName)
 		return err
 	}
 	if runtime.GOOS != "windows" {
 		if err := os.Rename(tmpName, dest); err != nil {
-			os.Remove(tmpName)
+			_ = os.Remove(tmpName)
 			return err
 		}
 		return nil
@@ -403,7 +404,7 @@ func replaceBinary(dest string, data []byte) error {
 	renamed := false
 	if _, err := os.Stat(dest); err == nil {
 		if err := os.Rename(dest, old); err != nil {
-			os.Remove(tmpName)
+			_ = os.Remove(tmpName)
 			return fmt.Errorf("无法重命名旧二进制（是否正在运行？）: %w", err)
 		}
 		renamed = true
@@ -412,7 +413,7 @@ func replaceBinary(dest string, data []byte) error {
 		if renamed {
 			_ = os.Rename(old, dest)
 		}
-		os.Remove(tmpName)
+		_ = os.Remove(tmpName)
 		return err
 	}
 	// 运行中的旧进程会占用 .old，删不掉就留给下次启动清理。

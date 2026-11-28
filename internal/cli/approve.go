@@ -50,7 +50,7 @@ func RunApprove(opts GlobalOptions, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrEnvironment, err)
 	}
-	defer sb.Close()
+	defer func() { _ = sb.Close() }()
 
 	contextWindow := cfg.Context.Window
 	if contextWindow <= 0 {

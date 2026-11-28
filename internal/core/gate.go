@@ -132,7 +132,7 @@ func (g *Gate) Evaluate(c Claim, bag EvidenceBag) Decision {
 	// 4. 接地谓词：只有一级验证器、实际运行且通过的证据能支撑完成。
 	// 未运行/失败的证据已在上面的覆盖或失败检查中处理，这里只看会被采信的通过证据。
 	for _, e := range items {
-		if !(e.Ran && e.OK) || !relevant(e) {
+		if !e.Ran || !e.OK || !relevant(e) {
 			continue
 		}
 		if e.CanGround() {

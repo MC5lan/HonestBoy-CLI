@@ -30,10 +30,9 @@ type TraceEvent struct {
 
 // Tracer 追加写轨迹到 JSONL（文档 §3.6.4：批量刷盘，不解析历史）。
 type Tracer struct {
-	dir     string
-	file    *os.File
-	pending []TraceEvent
-	claims  []ClaimRecord
+	dir    string
+	file   *os.File
+	claims []ClaimRecord
 }
 
 func NewTracer(dir string) *Tracer {
@@ -78,7 +77,7 @@ func (t *Tracer) appendJSON(b []byte) {
 		}
 		t.file = f
 	}
-	t.file.Write(append(b, '\n'))
+	_, _ = t.file.Write(append(b, '\n'))
 }
 
 // UCR 返回未证实断言率（Ungrounded Claim Rate）——坦荡水位计（文档 §6.1）。

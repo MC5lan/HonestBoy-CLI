@@ -100,9 +100,10 @@ func (b *block) RenderWith(r *render.Renderer, width int, th theme.Theme, verbos
 		}
 	case blkNotice:
 		style := th.DimStyle()
-		if b.meta["level"] == "warn" {
+		switch b.meta["level"] {
+		case "warn":
 			style = th.WarnStyle()
-		} else if b.meta["level"] == "error" {
+		case "error":
 			style = th.DangerStyle()
 		}
 		out = style.Render("! " + b.content)

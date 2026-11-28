@@ -28,11 +28,3 @@ func WrapURLs(s string) string {
 		return "\x1b]8;;" + u + "\x1b\\" + u + "\x1b]8;;\x1b\\"
 	})
 }
-
-// Hyperlink 生成单个 OSC 8 链接，供非 Markdown 文本使用。
-func Hyperlink(text, url string) string {
-	if !LinkSupported() || url == "" {
-		return text + " (" + url + ")"
-	}
-	return "\x1b]8;;" + url + "\x1b\\" + text + "\x1b]8;;\x1b\\"
-}

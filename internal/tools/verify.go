@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -42,9 +43,10 @@ func projectCommand(sb *Sandbox, npmCmd, goCmd string) []string {
 	}
 	if _, err := sb.Stat("package.json"); err == nil {
 		cmd := strings.Fields(npmCmd)
-		if npmCmd == "go build" {
+		switch npmCmd {
+		case "go build":
 			cmd = []string{"npm", "run", "build"}
-		} else if npmCmd == "go test" {
+		case "go test":
 			cmd = []string{"npm", "test"}
 		}
 		return cmd
@@ -63,7 +65,8 @@ func runVerify(ctx context.Context, sb *Sandbox, kind core.EvidenceKind, target 
 	exitCode := 0
 	err := cmd.Run()
 	if err != nil {
-		if ee, ok := err.(*exec.ExitError); ok {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
 			exitCode = ee.ExitCode()
 		} else {
 			return core.Evidence{}, err

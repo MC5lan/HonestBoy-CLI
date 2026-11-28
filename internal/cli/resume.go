@@ -14,7 +14,7 @@ import (
 // RunResumeLast 实现 hb resume --last：续跑当前工作区最近一条未完成会话。
 func RunResumeLast(opts GlobalOptions, args []string) error {
 	_ = logging.Init(opts.Debug, "")
-	defer logging.Close()
+	defer func() { _ = logging.Close() }()
 
 	cfg, err := store.Load()
 	if err != nil {
@@ -30,7 +30,7 @@ func RunResumeLast(opts GlobalOptions, args []string) error {
 // RunResumeID 实现 hb resume <id> --headless：在脚本/CI 中续跑指定会话。
 func RunResumeID(opts GlobalOptions, id string, args []string) error {
 	_ = logging.Init(opts.Debug, "")
-	defer logging.Close()
+	defer func() { _ = logging.Close() }()
 
 	cfg, err := store.Load()
 	if err != nil {

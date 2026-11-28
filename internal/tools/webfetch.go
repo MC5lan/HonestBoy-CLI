@@ -81,7 +81,7 @@ func (t *WebFetchTool) Run(ctx context.Context, raw json.RawMessage) (Result, er
 	if err != nil {
 		return failResult("请求失败: " + err.Error())
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxWebBytes+1))
 	if err != nil {
 		return failResult("读取失败: " + err.Error())

@@ -1,21 +1,62 @@
-run:
-  timeout: 5m
+version: "2"
 linters:
   enable:
-    - gofmt
-    - govet
-    - errcheck
-    - staticcheck
-    - ineffassign
-    - unused
-    - gocyclo
-    - gocognit
-    - misspell
     - bodyclose
     - errorlint
+    - gocognit
+    - gocyclo
+    - misspell
     - noctx
-linters-settings:
-  gocyclo:
-    min-complexity: 15
-issues:
-  exclude-use-default: false
+  settings:
+    # v1.0 先设上限防止继续恶化；拆分见 docs/tech-debt.md D14。
+    gocognit:
+      min-complexity: 80
+    gocyclo:
+      min-complexity: 80
+    errcheck:
+      # CLI 输出失败（管道关闭/终端退出）不应影响主流程。
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+    rules:
+      # 测试里大量 defer Close / exec.Command 忽略返回值，属于噪音。
+      - path: _test\.go
+        linters:
+          - errcheck
+          - errorlint
+          - noctx
+      # v1.0 不强制所有 CLI 错误都 %w 包装；错误文案已由 playbook 保证。
+      # 类型断言仍检查，避免 errors.As 漏判。
+      - linters:
+          - errorlint
+        text: non-wrapping format verb
+      # 三个已知超大函数的拆分记在 docs/tech-debt.md D14，先按函数豁免。
+      - path: internal/engine/loop\.go
+        linters:
+          - gocognit
+          - gocyclo
+        text: runTurn
+      - path: internal/store/session_store\.go
+        linters:
+          - gocognit
+        text: "func `\\(\\*SessionStore\\)\\.List`"
+      - path: internal/tui/update\.go
+        linters:
+          - gocognit
+        text: applyEvent
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

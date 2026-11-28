@@ -17,3 +17,4 @@
 | D11 | TUI `/sessions` 只列当前工作区会话 | 功能 | 不能在同一 TUI 内跨项目切换 | 多项目用户 | 需要按会话 cwd 重建 sandbox/registry；当前先用 `hb --cwd` 或 `hb resume` | 已知可接受 |
 | D12 | ~~本机无 gcc，未跑 `go test -race`~~ | 验证 | — | — | 2026-11-24 CI run `45355568756` 的 Linux build job 已跑 `go test ./... -race` 并通过 | 已关闭（CI 验证） |
 | D13 | ~~`hb upgrade` 下载资产固定 2 分钟超时~~ | 交互 | — | — | 2026-11-24 默认超时改为 15 分钟，`--timeout` 可覆盖，网络/429/5xx 自动重试 3 次，TTY 显示下载进度；真实 GitHub 升级复测通过（v0.1.1） | 已关闭 |
+| D14 | 部分核心函数认知复杂度偏高（`runTurn` 405、`SessionStore.List` 87、`tui.applyEvent` 82；另有 21 个函数 >30） | 可维护性 | 修改回合循环、会话列表或 TUI 事件时容易引入回归 | 继续堆功能前 | v1.0 以 gocognit/gocyclo 阈值 80 + 对三个已知函数按函数豁免兜底；v1.1 优先拆分 `runTurn`（计划/执行/验证三段） | 已知可接受 |

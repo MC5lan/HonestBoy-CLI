@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -88,7 +89,8 @@ func (t *SearchTool) rgSearch(ctx context.Context, a searchArgs) []searchHit {
 	cmd.Dir = t.sb.Workdir()
 	out, err := cmd.Output()
 	if err != nil {
-		if _, ok := err.(*exec.ExitError); !ok {
+		var ee *exec.ExitError
+		if !errors.As(err, &ee) {
 			return nil
 		}
 	}
@@ -175,7 +177,7 @@ func readSmallFile(path string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	info, err := f.Stat()
 	if err != nil || info.Size() > maxReadBytes {
 		return nil, ErrFileTooLarge

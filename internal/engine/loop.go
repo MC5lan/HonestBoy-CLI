@@ -609,7 +609,7 @@ steps:
 // extractTags 从用户输入提取检索标签（简单分词，限定小写单词）。
 func extractTags(input string) []string {
 	fields := strings.FieldsFunc(input, func(r rune) bool {
-		return !(r >= 'a' && r <= 'z') && !(r >= 'A' && r <= 'Z') && !(r >= '0' && r <= '9')
+		return (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9')
 	})
 	var out []string
 	seen := map[string]bool{}
