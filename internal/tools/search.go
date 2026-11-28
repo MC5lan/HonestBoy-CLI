@@ -54,9 +54,12 @@ func (t *SearchTool) Run(ctx context.Context, args json.RawMessage) (Result, err
 	}
 	var hits []searchHit
 	if _, err := exec.LookPath("rg"); err == nil {
-		hits = t.rgSearch(ctx, a)
-	}
-	if len(hits) == 0 {
+		var ok bool
+		hits, ok = t.rgSearch(ctx, a)
+		if !ok {
+			hits = t.walkSearch(ctx, a)
+		}
+	} else {
 		hits = t.walkSearch(ctx, a)
 	}
 	sort.Slice(hits, func(i, j int) bool {
@@ -79,23 +82,25 @@ func (t *SearchTool) Run(ctx context.Context, args json.RawMessage) (Result, err
 		Provenance: core.ProvInferred}, nil
 }
 
-func (t *SearchTool) rgSearch(ctx context.Context, a searchArgs) []searchHit {
-	params := []string{"--json", "-C", "2"}
+// rgSearch 返回 (hits, ok)。ok=false 表示 rg 本身没跑起来或出错，
+// 调用方应回退到 Go 遍历；ok=true 时 0 条命中是合法结果，不能再扫一遍。
+func (t *SearchTool) rgSearch(ctx context.Context, a searchArgs) ([]searchHit, bool) {
+	params := []string{"--json"}
 	if a.Glob != "" {
 		params = append(params, "-g", a.Glob)
 	}
 	params = append(params, a.Pattern)
 	cmd := exec.CommandContext(ctx, "rg", params...)
 	cmd.Dir = t.sb.Workdir()
-	out, err := cmd.Output()
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		var ee *exec.ExitError
-		if !errors.As(err, &ee) {
-			return nil
-		}
+		return nil, false
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, false
 	}
 	var hits []searchHit
-	scanner := bufio.NewScanner(bytes.NewReader(out))
+	scanner := bufio.NewScanner(stdout)
 	scanner.Buffer(make([]byte, 64*1024), 1<<20)
 	for scanner.Scan() {
 		var ev struct {
@@ -119,10 +124,24 @@ func (t *SearchTool) rgSearch(ctx context.Context, a searchArgs) []searchHit {
 			Text: strings.TrimRight(ev.Data.Lines.Text, "\r\n"),
 		})
 		if len(hits) >= a.MaxResults {
+			// 常见词可能命中几十万行；拿够结果就停，不等 rg 扫完。
+			_ = cmd.Process.Kill()
 			break
 		}
 	}
-	return hits
+	scanErr := scanner.Err()
+	waitErr := cmd.Wait()
+	if scanErr != nil && len(hits) == 0 {
+		return nil, false
+	}
+	if waitErr != nil && len(hits) == 0 {
+		// rg 用 1 表示“没有匹配”，这不是失败。
+		var ee *exec.ExitError
+		if !errors.As(waitErr, &ee) || ee.ExitCode() != 1 {
+			return nil, false
+		}
+	}
+	return hits, true
 }
 
 func (t *SearchTool) walkSearch(ctx context.Context, a searchArgs) []searchHit {
