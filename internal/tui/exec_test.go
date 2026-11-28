@@ -58,9 +58,19 @@ func TestExecCommandInTUI(t *testing.T) {
 		return "链完整", nil
 	}})
 	m.setSize(100, 34)
-	m.runSlash("/verify", "/verify", nil)
+	cmd := m.runSlash("/verify", "/verify", nil)
+	if cmd == nil {
+		t.Fatal("expected async exec command")
+	}
+	if !m.execBusy {
+		t.Fatal("exec command should mark busy")
+	}
+	m.Update(cmd())
 	if called != "/verify" {
 		t.Fatalf("exec not called: %q", called)
+	}
+	if m.execBusy {
+		t.Fatal("exec should be idle after result")
 	}
 	found := false
 	for _, b := range m.blocks {
@@ -78,7 +88,11 @@ func TestExecCommandError(t *testing.T) {
 		return "", errors.New("boom")
 	}})
 	m.setSize(100, 34)
-	m.runSlash("/stats", "/stats", nil)
+	cmd := m.runSlash("/stats", "/stats", nil)
+	if cmd == nil {
+		t.Fatal("expected async exec command")
+	}
+	m.Update(cmd())
 	if !strings.Contains(m.hint, "执行失败") {
 		t.Fatalf("hint = %q", m.hint)
 	}

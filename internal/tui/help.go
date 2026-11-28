@@ -18,7 +18,7 @@ var keyBindings = []keyBinding{
 	{"Shift+Enter / Alt+Enter", "输入换行（多行任务）"},
 	{"Ctrl+C", "中断当前回合；空闲时连按两次退出；审批/帮助页同样生效"},
 	{"Ctrl+L", "清空对话显示"},
-	{"Ctrl+O", "展开/折叠工具输出"},
+	{"Ctrl+O", "展开/折叠最后一个工具输出（/verbose n 选卡片）"},
 	{"Ctrl+R", "只读重放当前会话"},
 	{"Ctrl+Home / Ctrl+End", "对话区到顶/到底"},
 	{"Ctrl+U / Ctrl+D", "对话区上/下半页"},

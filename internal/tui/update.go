@@ -39,6 +39,20 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case approvalClosedMsg:
 		return m, nil
 
+	case execResultMsg:
+		m.execBusy = false
+		if msg.err != nil {
+			m.hint = "执行失败: " + msg.err.Error()
+		} else {
+			m.blocks = append(m.blocks, block{
+				kind: blkNotice, content: msg.out, dirty: true,
+				meta: map[string]string{"level": "info"},
+			})
+			m.hint = msg.cmd + " 已执行"
+		}
+		m.refreshView()
+		return m, nil
+
 	case tea.MouseMsg:
 		if msg.Action == tea.MouseActionPress {
 			switch msg.Button {

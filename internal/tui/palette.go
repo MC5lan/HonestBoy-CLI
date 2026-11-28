@@ -31,7 +31,7 @@ var slashCommands = []slashCmd{
 	{"/compact", "压缩下一回合历史", false},
 	{"/theme", "切换主题：dark/light/none/auto", true},
 	{"/reload", "重载模型/协议/端点/主题", false},
-	{"/verbose", "展开/折叠工具输出（Ctrl+O）", false},
+	{"/verbose", "工具输出：Ctrl+O 最后一个 / /verbose n 选卡片 / all 全部", false},
 	{"/setup", "配置向导说明", false},
 	{"/help", "快捷键与命令", false},
 	{"/quit", "退出", false},

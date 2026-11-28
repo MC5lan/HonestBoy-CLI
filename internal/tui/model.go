@@ -102,6 +102,7 @@ type Model struct {
 	runID      uint64
 	queue      []string
 	draining   int
+	execBusy   bool
 	pasteText  string
 	pasteToken string
 
@@ -178,7 +179,7 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) busy() bool {
-	return m.state != stIdle || m.run != nil || m.draining > 0
+	return m.state != stIdle || m.run != nil || m.draining > 0 || m.execBusy
 }
 
 // submit 处理一次回车：斜杠命令立即执行；普通任务在忙碌时进入队列。
@@ -398,13 +399,7 @@ func (m *Model) runSlash(name, line string, args []string) tea.Cmd {
 		m.applySettings(s)
 		m.hint = "配置已重载（模型/协议/端点/主题；工作区仍为当前会话）"
 	case "/verbose":
-		m.verboseTools = !m.verboseTools
-		m.markAllDirty()
-		if m.verboseTools {
-			m.hint = "工具输出已展开（Ctrl+O 切换）"
-		} else {
-			m.hint = "工具输出已折叠（Ctrl+O 切换）"
-		}
+		return m.verboseCommand(args)
 	case "/sessions":
 		return m.openSessionPicker()
 	case "/approve":
@@ -439,7 +434,11 @@ func (m *Model) runSlash(name, line string, args []string) tea.Cmd {
 		m.sessionID = args[0]
 		return m.startPrompt(plan)
 	case "/verify", "/stats", "/diff", "/undo", "/rewind":
-		if (name == "/undo" || name == "/rewind") && m.busy() {
+		if m.execBusy {
+			m.hint = "上一条命令还在执行，稍等…"
+			return nil
+		}
+		if (name == "/undo" || name == "/rewind") && (m.state != stIdle || m.run != nil || m.draining > 0) {
 			m.hint = "执行中不能修改代码；先 Esc 中断"
 			return nil
 		}
@@ -447,18 +446,17 @@ func (m *Model) runSlash(name, line string, args []string) tea.Cmd {
 			m.hint = "该命令需要宿主注入执行器"
 			return nil
 		}
-		out, err := m.cfg.Exec(name, args, m.sessionID)
-		if err != nil {
-			m.hint = "执行失败: " + err.Error()
-			return nil
-		}
-		m.blocks = append(m.blocks, block{
-			kind: blkNotice, content: out, dirty: true,
-			meta: map[string]string{"level": "info"},
-		})
-		m.hint = name + " 已执行"
+		exec := m.cfg.Exec
+		cmdName := name
+		argsCopy := append([]string{}, args...)
+		sessionID := m.sessionID
+		m.execBusy = true
+		m.hint = "正在执行 " + name + "…"
 		m.refreshView()
-		return nil
+		return func() tea.Msg {
+			out, err := exec(cmdName, argsCopy, sessionID)
+			return execResultMsg{cmd: cmdName, out: out, err: err}
+		}
 	default:
 		m.hint = "未知命令 " + name + "；相近: " + strings.Join(suggestCommands(name), ", ")
 	}
@@ -648,16 +646,105 @@ func (m *Model) resetRenderCache() {
 	}
 }
 
-func (m *Model) toggleLastTool() bool {
-	for i := len(m.blocks) - 1; i >= 0; i-- {
+func (m *Model) verboseCommand(args []string) tea.Cmd {
+	if len(args) == 0 || strings.EqualFold(args[0], "all") {
+		m.verboseTools = !m.verboseTools
+		m.markAllDirty()
+		if m.verboseTools {
+			m.hint = "工具输出已全部展开（/verbose all 切换）"
+		} else {
+			m.hint = "工具输出已全部折叠（/verbose n 选择单个）"
+		}
+		return nil
+	}
+	switch strings.ToLower(strings.TrimSpace(args[0])) {
+	case "last":
+		m.toggleLastTool()
+		return nil
+	case "list":
+		m.blocks = append(m.blocks, block{
+			kind: blkNotice, content: m.toolListText(), dirty: true,
+			meta: map[string]string{"level": "info"},
+		})
+		m.refreshView()
+		return nil
+	}
+	n := 0
+	if _, err := fmt.Sscanf(args[0], "%d", &n); err != nil || n <= 0 {
+		m.hint = "用法: /verbose [n|all|list|last]"
+		return nil
+	}
+	if m.verboseTools {
+		m.verboseTools = false
+		m.markAllDirty()
+	}
+	if !m.toggleToolAt(n) {
+		m.hint = fmt.Sprintf("没有第 %d 个工具输出（共 %d 个）", n, m.toolCount())
+	}
+	return nil
+}
+
+func (m *Model) toolCount() int {
+	n := 0
+	for i := range m.blocks {
 		if m.blocks[i].kind == blkTool {
-			m.blocks[i].collapsed = !m.blocks[i].collapsed
-			m.blocks[i].dirty = true
-			m.refreshView()
-			return true
+			n++
 		}
 	}
+	return n
+}
+
+func (m *Model) toggleToolAt(n int) bool {
+	cur := 0
+	for i := range m.blocks {
+		if m.blocks[i].kind != blkTool {
+			continue
+		}
+		cur++
+		if cur != n {
+			continue
+		}
+		m.blocks[i].collapsed = !m.blocks[i].collapsed
+		m.blocks[i].dirty = true
+		state := "展开"
+		if m.blocks[i].collapsed {
+			state = "折叠"
+		}
+		m.hint = fmt.Sprintf("工具 #%d 已%s（/verbose list 查看全部）", n, state)
+		m.refreshView()
+		return true
+	}
 	return false
+}
+
+func (m *Model) toolListText() string {
+	var b strings.Builder
+	b.WriteString("工具输出（/verbose n 展开/折叠，/verbose all 全部）：")
+	n := 0
+	for i := range m.blocks {
+		if m.blocks[i].kind != blkTool {
+			continue
+		}
+		n++
+		status := "成功"
+		if !m.blocks[i].ok {
+			status = "失败"
+		}
+		args := render.Truncate(strings.ReplaceAll(m.blocks[i].meta["args"], "\n", " "), 50)
+		fmt.Fprintf(&b, "\n  #%d %s %s · %s", n, m.blocks[i].meta["tool"], args, status)
+	}
+	if n == 0 {
+		b.WriteString("\n  （无）")
+	}
+	return b.String()
+}
+
+func (m *Model) toggleLastTool() bool {
+	n := m.toolCount()
+	if n == 0 {
+		return false
+	}
+	return m.toggleToolAt(n)
 }
 
 func (m *Model) markAllDirty() {

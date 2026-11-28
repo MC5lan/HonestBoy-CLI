@@ -21,6 +21,13 @@ type streamClosedMsg struct {
 	runID uint64
 }
 
+// execResultMsg 是 /verify /stats /diff /undo /rewind 的异步执行结果。
+type execResultMsg struct {
+	cmd string
+	out string
+	err error
+}
+
 // waitForEvent 把事件 channel 转成 tea.Cmd；channel 关闭时发带 runID 的关闭消息。
 func waitForEvent(runID uint64, ch <-chan core.Event) tea.Cmd {
 	if ch == nil {

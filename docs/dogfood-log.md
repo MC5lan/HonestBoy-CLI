@@ -114,6 +114,9 @@ TD06 要求累计 30 条真实使用中的“今天哪不舒服”。当前是�
     （摘要/改动/验证/未验证/下一步）；模型 401/403/404/400/429/5xx/连接错误映射为可执行建议；
     新增 `hb resume <id> --headless`。补 HumanWriter 回执、apply_patch 路径、状态错误与
     二进制 headless resume 测试。
+50. TUI 第三批：`/diff` `/undo` `/rewind` 改为异步 `tea.Cmd`，执行中显示“正在执行”，
+    大仓库不再阻塞按键与渲染；工具输出支持 `/verbose n` 选卡片、`all` 全部、`list` 列出、
+    `last` 最后一个，`Ctrl+O` 仍是最后一个卡片的快捷切换。更新 tech-debt D09/D10 为已关闭。
 
 ## 2026-11-23
 

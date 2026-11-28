@@ -73,7 +73,7 @@
 | `/compact` | 请求压缩下一回合历史（旧工具输出截断、旧对话丢弃） |
 | `/theme` | 切换主题：`dark` / `light` / `none` / `auto` |
 | `/reload` | 重载模型、协议、端点、主题（不热切工作区） |
-| `/verbose` | 展开/折叠工具输出（等同 Ctrl+O） |
+| `/verbose` | 工具输出：`Ctrl+O` 最后一个；`/verbose n` 选第 n 个；`all` 全部；`list` 列出卡片 |
 | `/setup` `/help` `/quit` | 配置向导说明 / 帮助 / 退出 |
 
 命令面板：输入 `/` 打开；`↑ / ↓` 选择，`Tab` 补全，`Enter` 执行高亮项。
@@ -94,7 +94,7 @@ TUI 默认续接同一会话；`/new` 或 `/sessions` 可切换。输入历史�
 | `Shift+Enter / Alt+Enter` | 输入换行（多行任务） |
 | `Ctrl+C` | 中断当前回合；空闲时连按两次退出；审批与帮助页同样生效 |
 | `Ctrl+L` | 清空对话显示 |
-| `Ctrl+O` | 展开/折叠工具输出 |
+| `Ctrl+O` | 展开/折叠最后一个工具输出（`/verbose n` 选卡片） |
 | `Ctrl+R` | 只读重放当前会话 |
 | `Ctrl+Home / Ctrl+End` | 对话区到顶/到底 |
 | `Ctrl+U / Ctrl+D` | 对话区上/下半页 |
