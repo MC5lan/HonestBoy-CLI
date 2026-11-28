@@ -181,6 +181,38 @@ install -m 755 bin/hb ~/.local/bin/hb   # 确保 ~/.local/bin 在 PATH
 
 从源码构建需要 Go 1.27+。`winget/` 与 `scoop/` 是发布清单的暂存目录。
 
+## 校验与回滚
+
+每个 release 都附带 `checksums.txt`。下载 zip 后先校验，再解压：
+
+```powershell
+# Windows
+Get-FileHash .\hb_<version>_windows_amd64.zip -Algorithm SHA256
+Select-String .\checksums.txt -Pattern 'windows_amd64'
+```
+
+```bash
+# Linux（在 checksums.txt 和 zip 同目录）
+sha256sum -c checksums.txt --ignore-missing
+```
+
+`hb upgrade` 会自动比对 release 的 SHA256；校验失败不会替换当前二进制。
+
+回滚步骤（当前会话 schema 为 v1，`0.4.x` 之间可安全回滚）：
+
+1. 关闭所有 `hb` 进程，记录 `hb --version`。
+2. 从 [Releases](https://github.com/MC5lan/HonestBoy-CLI/releases) 下载上一版 zip，按上面的方法校验 SHA256。
+3. 解压出 `hb.exe`，替换 `%LOCALAPPDATA%\HB\bin\hb.exe`；Linux 替换 `~/.local/bin/hb`。
+4. 如果升级过程中留下 `hb.exe.old`，也可以直接用它恢复：
+   ```powershell
+   Move-Item "$env:LOCALAPPDATA\HB\bin\hb.exe.old" "$env:LOCALAPPDATA\HB\bin\hb.exe" -Force
+   ```
+5. 运行 `hb doctor` 和 `hb --version` 确认。
+
+发布侧保留最近 2 个版本（当前为 `v0.4.0`、`v0.3.1`、`v0.3.0`），不要删除上一版资产。
+跨大版本回滚前，先备份 `%LOCALAPPDATA%\HB\sessions`（Linux `~/.config/HB/sessions`）或运行 `hb export`；
+会话文件格式升级前，发布流程要求先复制 `.jsonl` 为 `.bak`，并在 release notes 标明是否可逆。
+
 ## 文档
 
 - [架构与机制](docs/architecture.md)
@@ -191,6 +223,7 @@ install -m 755 bin/hb ~/.local/bin/hb   # 确保 ~/.local/bin 在 PATH
 - [故障排查](docs/troubleshooting.md)
 - [设计论文（PDF）](docs/paper/constructive-closure.pdf)
 - [发布清单](docs/release-checklist.md)
+- [30 天自用模板](docs/dogfood-template.md) / [陌生人测试脚本](docs/stranger-test.md)
 
 ## 开发
 

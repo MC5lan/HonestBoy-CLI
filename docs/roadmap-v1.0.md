@@ -126,8 +126,8 @@
 - [~] 启动实测 57–64ms；1000 事件恢复 9.8ms；10 万文件搜索实测：无 rg 25.7s、有 rg 4.7s（Defender 开启），**未达 <3s**；已修复 rg 无命中双扫，详见 `docs/perf-baseline.md` (M)
 - [~] 30 个失败场景表 + 7 类极端输入映射（`docs/failure-scenarios.md`）；G1–G7 已修复、断流续写已接入；`go test ./...` 与 9 条 `HB_E2E=1` 二进制测试全绿，断网/只读/10MB 单行/50 万字（峰值 34–41MB）已实测；仍待磁盘满（需管理员）/权限/百万文件/10 分钟 (L)
 - [x] `golangci-lint` 进 CI；staticcheck U1000/deadcode 清零（2026-11-28：golangci-lint v2.15.0、staticcheck v0.8.2、deadcode v0.53.0 本地全绿；CI run 46122715115 的 lint/build/e2e/govuln 全部通过）(M)
-- [ ] 30 天自用记录从 23 条补到 30 条；每条有修复或不改理由 (L)
-- [ ] 3 人陌生测试 ≥2/3 成功；新人 30 分钟跑通记录 (L)
+- [ ] 30 个连续自然日真实自用；每条有修复或不改理由（模板 `docs/dogfood-template.md`；开发期 51 条记录不冒充连续 30 天）(L)
+- [ ] 3 人陌生测试 ≥2/3 成功；新人 30 分钟跑通记录（脚本 `docs/stranger-test.md`，尚未执行）(L)
 
 验收：手册 TA01–TA12、TD01–TD07 与 §6.3 全部硬指标。
 

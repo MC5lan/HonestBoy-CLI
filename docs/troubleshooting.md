@@ -101,6 +101,7 @@ hb sessions diag <id>
 - `hb upgrade` 会先把旧文件改名为 `hb.exe.old`，新文件立即就位；关闭旧窗口后，
   下次启动会自动清理 `.old`。
 - 若手动覆盖失败，关闭所有 `hb` 窗口后重试。
+- 需要回滚时按 README「校验与回滚」操作；不要先删 `hb.exe.old`，它是升级失败时的恢复副本。
 
 ## `hb probe` 不通过
 

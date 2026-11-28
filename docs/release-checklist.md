@@ -66,6 +66,16 @@ hb --version
 `hb upgrade` 会下载 zip、比对 `checksums.txt` 的 SHA256、替换当前二进制；
 Windows 下旧文件先改名为 `hb.exe.old`，下次启动自动清理。
 
+## 4.1 回滚与资产保留
+
+1. release 至少保留最近 2 个版本的可下载资产与 `checksums.txt`；当前保留 `v0.4.0`、`v0.3.1`、`v0.3.0`。
+2. 每次发布记录升级前 `hb --version`，升级后跑 `hb --version` / `hb doctor`，并在 `docs/dogfood-log.md` 留痕。
+3. 回滚演练：下载上一版 zip → 校验 SHA256 → 关闭 hb → 替换 `%LOCALAPPDATA%\HB\bin\hb.exe`
+   （Linux `~/.local/bin/hb`）→ `hb doctor`。若升级刚失败且存在 `hb.exe.old`，可直接改回该文件。
+4. 会话 schema 当前为 v1。未来 bump schema 前，发布脚本/流程必须先把 `sessions/*.jsonl` 复制为 `.bak`，
+   并在 release notes 写明“降级不兼容”；跨大版本回滚前建议先 `hb export`。
+5. 未做代码签名，回滚不能消除 SmartScreen 提示；SHA256 与 release 资产是唯一可信来源。
+
 ## 5. 发布后
 
 - 在 `docs/tech-debt.md` 关闭 D05（清单哈希）与 D06（真实升级验证）。
